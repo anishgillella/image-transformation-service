@@ -1,3 +1,4 @@
+// Image Transformer types
 export interface ProcessedImage {
   id: string;
   originalName: string;
@@ -13,3 +14,76 @@ export interface UploadResponse {
 }
 
 export type AppState = 'idle' | 'uploading' | 'processing' | 'complete' | 'error';
+
+// AdForge types
+export interface Product {
+  name: string;
+  description: string;
+  features: string[];
+  targetAudience: string;
+  promotionAngle: string;
+  keyBenefits: string[];
+}
+
+export interface BrandProfile {
+  companyName: string;
+  url: string;
+  personality: string[];
+  colors: {
+    primary: string;
+    secondary: string;
+    accent: string;
+  };
+  targetAudience: string;
+  voiceTone: string;
+  visualStyle: string;
+  industry: string;
+  uniqueSellingPoints: string[];
+  products: Product[];
+  analyzedAt: string;
+}
+
+export interface AnalyzeResponse {
+  success: boolean;
+  profileId?: string;
+  brandProfile?: BrandProfile;
+  error?: string;
+}
+
+export type AdStyle = 'minimal' | 'gradient' | 'abstract' | 'lifestyle';
+
+export interface AdCopy {
+  headline: string;
+  body: string;
+  cta: string;
+  hashtags: string[];
+}
+
+export interface GeneratedAd {
+  id: string;
+  brandProfile: BrandProfile;
+  style: AdStyle;
+  imageUrl: string;
+  copy: AdCopy;
+  hasProductImage: boolean;
+  createdAt: string;
+}
+
+export interface GenerateResponse {
+  success: boolean;
+  ad?: GeneratedAd;
+  selectedProduct?: {
+    name: string;
+    index: number;
+  } | null;
+  error?: string;
+}
+
+export type AdForgeState =
+  | 'idle'
+  | 'analyzing'
+  | 'profile-ready'
+  | 'configuring'
+  | 'generating'
+  | 'complete'
+  | 'error';
