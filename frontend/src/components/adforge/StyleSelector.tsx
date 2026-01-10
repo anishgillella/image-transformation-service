@@ -10,12 +10,15 @@ import {
   ChevronDown,
   Package,
   Building2,
+  Zap,
 } from 'lucide-react';
-import type { AdStyle, Product } from '../../types';
+import type { AdStyle, Product, GeneratedAd } from '../../types';
+import { BatchGenerateModal } from './BatchGenerateModal';
 
 interface StyleSelectorProps {
   brandName: string;
   products: Product[];
+  profileId: string;
   onGenerate: (
     style: AdStyle,
     options: {
@@ -25,6 +28,7 @@ interface StyleSelectorProps {
     }
   ) => void;
   isGenerating: boolean;
+  onBatchComplete?: (ads: GeneratedAd[]) => void;
 }
 
 const styles: {
@@ -72,8 +76,10 @@ const styles: {
 export function StyleSelector({
   brandName,
   products,
+  profileId,
   onGenerate,
   isGenerating,
+  onBatchComplete,
 }: StyleSelectorProps) {
   const [selectedStyle, setSelectedStyle] = useState<AdStyle | null>(null);
   const [selectedProductIndex, setSelectedProductIndex] = useState<number | null>(null);
@@ -81,6 +87,7 @@ export function StyleSelector({
   const [productImage, setProductImage] = useState<File | null>(null);
   const [productPreview, setProductPreview] = useState<string>('');
   const [showProductDropdown, setShowProductDropdown] = useState(false);
+  const [showBatchModal, setShowBatchModal] = useState(false);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -336,39 +343,70 @@ export function StyleSelector({
         />
       </motion.div>
 
-      {/* Generate Button */}
-      <motion.button
+      {/* Generate Buttons */}
+      <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        whileHover={{ scale: 1.01 }}
-        whileTap={{ scale: 0.99 }}
-        onClick={handleGenerate}
-        disabled={!selectedStyle || isGenerating}
-        className={`
-          w-full py-4 rounded-xl font-bold text-lg transition-all
-          ${selectedStyle && !isGenerating
-            ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/30'
-            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-          }
-        `}
+        className="flex gap-3"
       >
-        {isGenerating ? (
-          <span className="flex items-center justify-center gap-3">
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-              className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
-            />
-            Generating Your Ad...
-          </span>
-        ) : (
+        <motion.button
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+          onClick={handleGenerate}
+          disabled={!selectedStyle || isGenerating}
+          className={`
+            flex-1 py-4 rounded-xl font-bold text-lg transition-all
+            ${selectedStyle && !isGenerating
+              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/30'
+              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+            }
+          `}
+        >
+          {isGenerating ? (
+            <span className="flex items-center justify-center gap-3">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
+              />
+              Generating Your Ad...
+            </span>
+          ) : (
+            <span className="flex items-center justify-center gap-2">
+              <Sparkles size={20} />
+              Generate Ad
+            </span>
+          )}
+        </motion.button>
+
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => setShowBatchModal(true)}
+          disabled={isGenerating}
+          className="px-6 py-4 rounded-xl font-bold text-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/25 hover:shadow-xl hover:shadow-amber-500/30 transition-all disabled:opacity-50"
+          title="Batch Generate"
+        >
           <span className="flex items-center justify-center gap-2">
-            <Sparkles size={20} />
-            Generate Ad
+            <Zap size={20} />
+            Batch
           </span>
-        )}
-      </motion.button>
+        </motion.button>
+      </motion.div>
+
+      {/* Batch Generate Modal */}
+      <BatchGenerateModal
+        isOpen={showBatchModal}
+        onClose={() => setShowBatchModal(false)}
+        profileId={profileId}
+        brandName={brandName}
+        products={products}
+        onBatchComplete={(ads) => {
+          setShowBatchModal(false);
+          onBatchComplete?.(ads);
+        }}
+      />
     </motion.div>
   );
 }

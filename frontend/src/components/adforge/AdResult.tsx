@@ -9,26 +9,39 @@ import {
   RotateCcw,
   Share2,
   ExternalLink,
+  Eye,
+  FileDown,
 } from 'lucide-react';
 import type { GeneratedAd } from '../../types';
+import { ExportModal } from './ExportModal';
+import { AdPreviewModal } from './AdPreviewModal';
+import { CopyVariationsPanel } from './CopyVariationsPanel';
+import { BrandAssetLibrary } from './BrandAssetLibrary';
 
 interface AdResultProps {
   ad: GeneratedAd;
   selectedProductName?: string;
+  profileId?: string;
   onRegenerateCopy: () => void;
   onStartOver: () => void;
   isRegenerating: boolean;
+  onAdUpdate?: (ad: GeneratedAd) => void;
 }
 
 export function AdResult({
   ad,
   selectedProductName,
+  profileId,
   onRegenerateCopy,
   onStartOver,
   isRegenerating,
+  onAdUpdate,
 }: AdResultProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [currentAd, setCurrentAd] = useState(ad);
 
   const copyToClipboard = async (text: string, field: string) => {
     await navigator.clipboard.writeText(text);
@@ -38,21 +51,27 @@ export function AdResult({
 
   const handleDownload = () => {
     const link = document.createElement('a');
-    link.href = ad.imageUrl;
-    link.download = `${ad.brandProfile.companyName}-${ad.style}-ad.png`;
+    link.href = currentAd.imageUrl;
+    link.download = `${currentAd.brandProfile.companyName}-${currentAd.style}-ad.png`;
     link.target = '_blank';
     link.click();
+  };
+
+  const handleCopyUpdate = (newCopy: typeof currentAd.copy) => {
+    const updatedAd = { ...currentAd, copy: newCopy };
+    setCurrentAd(updatedAd);
+    onAdUpdate?.(updatedAd);
   };
 
   const handleShare = async () => {
     if (navigator.share) {
       await navigator.share({
-        title: `${ad.brandProfile.companyName} Ad`,
-        text: ad.copy.headline,
-        url: ad.imageUrl,
+        title: `${currentAd.brandProfile.companyName} Ad`,
+        text: currentAd.copy.headline,
+        url: currentAd.imageUrl,
       });
     } else {
-      copyToClipboard(ad.imageUrl, 'share');
+      copyToClipboard(currentAd.imageUrl, 'share');
     }
   };
 
@@ -62,6 +81,19 @@ export function AdResult({
       animate={{ opacity: 1 }}
       className="w-full max-w-5xl"
     >
+      {/* Modals */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        adId={currentAd.id}
+        brandName={currentAd.brandProfile.companyName}
+      />
+      <AdPreviewModal
+        isOpen={showPreviewModal}
+        onClose={() => setShowPreviewModal(false)}
+        ad={currentAd}
+      />
+
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
@@ -80,9 +112,9 @@ export function AdResult({
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Your Ad is Ready!</h2>
             <p className="text-gray-500">
-              {ad.brandProfile.companyName}
+              {currentAd.brandProfile.companyName}
               {selectedProductName && ` • ${selectedProductName}`}
-              {' '}• <span className="capitalize">{ad.style}</span> style
+              {' '}• <span className="capitalize">{currentAd.style}</span> style
             </p>
           </div>
         </div>
@@ -112,8 +144,8 @@ export function AdResult({
               </div>
             )}
             <motion.img
-              src={ad.imageUrl}
-              alt={`${ad.brandProfile.companyName} ad`}
+              src={currentAd.imageUrl}
+              alt={`${currentAd.brandProfile.companyName} ad`}
               className="w-full aspect-square object-cover"
               onLoad={() => setImageLoaded(true)}
               initial={{ opacity: 0, scale: 1.05 }}
@@ -137,6 +169,26 @@ export function AdResult({
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
+              onClick={() => setShowExportModal(true)}
+              className="px-4 py-3.5 bg-white border-2 border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-colors"
+              title="Export to platforms"
+            >
+              <FileDown size={20} className="text-gray-600" />
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setShowPreviewModal(true)}
+              className="px-4 py-3.5 bg-white border-2 border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-colors"
+              title="Preview on platforms"
+            >
+              <Eye size={20} className="text-gray-600" />
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={handleShare}
               className="px-4 py-3.5 bg-white border-2 border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-colors"
             >
@@ -146,7 +198,7 @@ export function AdResult({
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => window.open(ad.imageUrl, '_blank')}
+              onClick={() => window.open(currentAd.imageUrl, '_blank')}
               className="px-4 py-3.5 bg-white border-2 border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-colors"
             >
               <ExternalLink size={20} className="text-gray-600" />
@@ -164,8 +216,8 @@ export function AdResult({
           {/* Headline */}
           <CopyBlock
             label="Headline"
-            value={ad.copy.headline}
-            onCopy={() => copyToClipboard(ad.copy.headline, 'headline')}
+            value={currentAd.copy.headline}
+            onCopy={() => copyToClipboard(currentAd.copy.headline, 'headline')}
             isCopied={copiedField === 'headline'}
             className="text-2xl font-bold text-gray-900"
           />
@@ -173,8 +225,8 @@ export function AdResult({
           {/* Body */}
           <CopyBlock
             label="Body Copy"
-            value={ad.copy.body}
-            onCopy={() => copyToClipboard(ad.copy.body, 'body')}
+            value={currentAd.copy.body}
+            onCopy={() => copyToClipboard(currentAd.copy.body, 'body')}
             isCopied={copiedField === 'body'}
             className="text-gray-700"
           />
@@ -186,7 +238,7 @@ export function AdResult({
                 Call to Action
               </span>
               <button
-                onClick={() => copyToClipboard(ad.copy.cta, 'cta')}
+                onClick={() => copyToClipboard(currentAd.copy.cta, 'cta')}
                 className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 {copiedField === 'cta' ? (
@@ -198,9 +250,9 @@ export function AdResult({
             </div>
             <span
               className="inline-block px-5 py-2.5 rounded-lg font-semibold text-white"
-              style={{ backgroundColor: ad.brandProfile.colors.primary }}
+              style={{ backgroundColor: currentAd.brandProfile.colors.primary }}
             >
-              {ad.copy.cta}
+              {currentAd.copy.cta}
             </span>
           </div>
 
@@ -211,7 +263,7 @@ export function AdResult({
                 Hashtags
               </span>
               <button
-                onClick={() => copyToClipboard(ad.copy.hashtags.join(' '), 'hashtags')}
+                onClick={() => copyToClipboard(currentAd.copy.hashtags.join(' '), 'hashtags')}
                 className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 {copiedField === 'hashtags' ? (
@@ -222,7 +274,7 @@ export function AdResult({
               </button>
             </div>
             <div className="flex flex-wrap gap-2">
-              {ad.copy.hashtags.map((tag) => (
+              {currentAd.copy.hashtags.map((tag) => (
                 <span
                   key={tag}
                   className="px-3 py-1.5 bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700 rounded-full text-sm font-medium border border-indigo-100"
@@ -244,6 +296,21 @@ export function AdResult({
             <RefreshCw size={18} className={isRegenerating ? 'animate-spin' : ''} />
             {isRegenerating ? 'Regenerating...' : 'Regenerate Copy'}
           </motion.button>
+
+          {/* Copy Variations Panel */}
+          <CopyVariationsPanel
+            adId={currentAd.id}
+            currentCopy={currentAd.copy}
+            onCopyUpdate={handleCopyUpdate}
+          />
+
+          {/* Brand Asset Library */}
+          {profileId && (
+            <BrandAssetLibrary
+              profileId={profileId}
+              initialColors={currentAd.brandProfile.colors}
+            />
+          )}
         </motion.div>
       </div>
     </motion.div>

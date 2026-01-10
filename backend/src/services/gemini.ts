@@ -200,6 +200,76 @@ Generate the ad copy JSON:`;
 }
 
 /**
+ * Generate multiple copy variations (3 headlines, 3 bodies, 2 CTAs)
+ */
+export async function generateCopyVariations(
+  brandProfile: any,
+  style: string,
+  customInstructions?: string
+): Promise<string> {
+  const styleGuidelines: Record<string, string> = {
+    minimal: 'Clean, sparse, let whitespace speak. Short punchy copy. Premium feel.',
+    gradient: 'Modern, dynamic, tech-forward. Confident, forward-looking language.',
+    abstract: 'Creative, artistic, thought-provoking. Can be more conceptual/poetic.',
+    lifestyle: 'Relatable, aspirational, human-centered. Focus on benefits and emotions.',
+  };
+
+  const systemPrompt = `You are a world-class advertising copywriter who has written campaigns for Apple, Nike, and Airbnb. You write copy that stops thumbs mid-scroll.
+
+TASK: Generate MULTIPLE variations of ad copy for A/B testing. Each variation should be distinctly different while maintaining brand voice.
+
+COPY PRINCIPLES:
+1. **Headlines**: The hook. 3-8 words max. Creates curiosity or speaks to a pain point. No clickbait.
+2. **Bodies**: Expands on the value. 1-2 sentences. Benefit-focused, not feature-focused.
+3. **CTAs**: Action verb + outcome. "Start Free Trial" not "Click Here". 2-4 words.
+4. **Hashtags**: Mix of branded, industry, and trending. 4 hashtags total.
+
+VARIATION STRATEGY:
+- Headline 1: Pain point focused
+- Headline 2: Benefit/outcome focused
+- Headline 3: Curiosity/intrigue focused
+- Body 1: Emotional appeal
+- Body 2: Logical/feature appeal
+- Body 3: Social proof/urgency appeal
+- CTA 1: Action-oriented
+- CTA 2: Value-oriented
+
+STYLE DIRECTION: ${styleGuidelines[style] || 'Professional and engaging'}
+
+Return ONLY a JSON object (no markdown):
+{
+  "headlines": ["headline1", "headline2", "headline3"],
+  "bodies": ["body1", "body2", "body3"],
+  "ctas": ["cta1", "cta2"],
+  "hashtags": ["#Tag1", "#Tag2", "#Tag3", "#Tag4"]
+}`;
+
+  const userPrompt = `Generate multiple copy variations for:
+
+BRAND: ${brandProfile.companyName}
+INDUSTRY: ${brandProfile.industry}
+TARGET AUDIENCE: ${brandProfile.targetAudience}
+VOICE/TONE: ${brandProfile.voiceTone}
+KEY SELLING POINTS:
+${brandProfile.uniqueSellingPoints.map((usp: string, i: number) => `${i + 1}. ${usp}`).join('\n')}
+
+AD STYLE: ${style}
+${customInstructions ? `\nSPECIAL INSTRUCTIONS: ${customInstructions}` : ''}
+
+Generate the copy variations JSON:`;
+
+  const response = await chatWithGemini([
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: userPrompt },
+  ], {
+    temperature: 0.9, // Higher temperature for more variation
+    maxTokens: 800,
+  });
+
+  return response.content;
+}
+
+/**
  * Style-specific prompt templates for Flux
  */
 const STYLE_TEMPLATES = {
