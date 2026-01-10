@@ -66,6 +66,7 @@ export interface GeneratedAd {
   imageUrl: string;
   copy: AdCopy;
   hasProductImage: boolean;
+  productName?: string; // The product this ad is for (undefined = overall brand)
   createdAt: string;
 }
 
@@ -86,7 +87,77 @@ export type AdForgeState =
   | 'configuring'
   | 'generating'
   | 'complete'
+  | 'batch-complete'
   | 'error';
+
+// Copy variations types
+export interface CopyVariations {
+  headlines: string[];
+  bodies: string[];
+  ctas: string[];
+  hashtags: string[];
+}
+
+// Export formats
+export type ExportPlatform =
+  | 'instagram-feed'
+  | 'instagram-story'
+  | 'facebook-feed'
+  | 'twitter'
+  | 'linkedin'
+  | 'pinterest'
+  | 'tiktok';
+
+export interface PlatformInfo {
+  id: ExportPlatform;
+  name: string;
+  width: number;
+  height: number;
+}
+
+export interface ExportResult {
+  platform: ExportPlatform;
+  platformName: string;
+  width: number;
+  height: number;
+  format: 'png' | 'jpg';
+  url: string;
+}
+
+export interface ExportAllResult {
+  [platform: string]: {
+    url: string;
+    width: number;
+    height: number;
+    platformName: string;
+  };
+}
+
+// Brand asset library types
+export interface BrandAsset {
+  id: string;
+  profileId: string;
+  type: 'logo' | 'image';
+  name: string;
+  url: string;
+  metadata?: {
+    width?: number;
+    height?: number;
+    format?: string;
+  };
+  createdAt: string;
+}
+
+export interface BrandAssetLibrary {
+  profileId: string;
+  assets: BrandAsset[];
+  colors: {
+    primary: string;
+    secondary: string;
+    accent: string;
+    custom: string[];
+  };
+}
 
 // Cost tracking types
 export interface CostEntry {

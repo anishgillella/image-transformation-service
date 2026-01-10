@@ -84,7 +84,7 @@ npm start
 ```bash
 cd frontend
 npm install
-npm start
+npm run dev
 ```
 
 The application will be available at `http://localhost:3000` (frontend) and the backend API at `http://localhost:5000`.

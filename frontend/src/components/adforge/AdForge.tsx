@@ -7,6 +7,7 @@ import { BrandProfileCard } from './BrandProfileCard';
 import { StyleSelector } from './StyleSelector';
 import { GeneratingState } from './GeneratingState';
 import { AdResult } from './AdResult';
+import { BatchResultsGallery } from './BatchResultsGallery';
 import {
   analyzeCompany,
   updateBrandProfile,
@@ -28,6 +29,7 @@ export function AdForge() {
   const [selectedStyle, setSelectedStyle] = useState<AdStyle | null>(null);
   const [selectedProductIndex, setSelectedProductIndex] = useState<number | null>(null);
   const [generatedAd, setGeneratedAd] = useState<GeneratedAd | null>(null);
+  const [batchAds, setBatchAds] = useState<GeneratedAd[]>([]);
   const [isRegenerating, setIsRegenerating] = useState(false);
 
   // Step 1: Analyze company URL
@@ -134,6 +136,12 @@ export function AdForge() {
     }
   }, [generatedAd]);
 
+  // Handle batch generation complete
+  const handleBatchComplete = useCallback((ads: GeneratedAd[]) => {
+    setBatchAds(ads);
+    setState('batch-complete');
+  }, []);
+
   // Start over
   const handleStartOver = useCallback(() => {
     setState('idle');
@@ -143,6 +151,7 @@ export function AdForge() {
     setSelectedStyle(null);
     setSelectedProductIndex(null);
     setGeneratedAd(null);
+    setBatchAds([]);
   }, []);
 
   return (
@@ -190,7 +199,7 @@ export function AdForge() {
         )}
 
         {/* Configuring - Style Selection */}
-        {state === 'configuring' && brandProfile && (
+        {state === 'configuring' && brandProfile && profileId && (
           <motion.div
             key="configuring"
             initial={{ opacity: 0 }}
@@ -200,8 +209,10 @@ export function AdForge() {
             <StyleSelector
               brandName={brandProfile.companyName}
               products={brandProfile.products}
+              profileId={profileId}
               onGenerate={handleGenerate}
               isGenerating={false}
+              onBatchComplete={handleBatchComplete}
             />
           </motion.div>
         )}
@@ -241,9 +252,31 @@ export function AdForge() {
                   ? brandProfile.products[selectedProductIndex]?.name
                   : undefined
               }
+              profileId={profileId || undefined}
               onRegenerateCopy={handleRegenerateCopy}
               onStartOver={handleStartOver}
               isRegenerating={isRegenerating}
+              onAdUpdate={setGeneratedAd}
+            />
+          </motion.div>
+        )}
+
+        {/* Batch Complete */}
+        {state === 'batch-complete' && batchAds.length > 0 && (
+          <motion.div
+            key="batch-complete"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <BatchResultsGallery
+              ads={batchAds}
+              brandName={brandProfile?.companyName || ''}
+              onStartOver={handleStartOver}
+              onViewAd={(ad) => {
+                setGeneratedAd(ad);
+                setState('complete');
+              }}
             />
           </motion.div>
         )}
