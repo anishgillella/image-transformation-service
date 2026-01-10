@@ -1,7 +1,9 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
+import path from 'path';
+import { costTracker } from './costTracker';
 
-dotenv.config();
+dotenv.config({ path: path.resolve('/Users/anishgillella/Desktop/Stuff/Projects/uplane/.env') });
 
 const BFL_API_URL = 'https://api.bfl.ml/v1';
 
@@ -52,6 +54,10 @@ export async function generateImage(options: FluxGenerateOptions): Promise<Buffe
 
   // Step 3: Download image
   const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+
+  // Track cost
+  costTracker.trackImageGeneration('flux-pro-1.1', 'image-generation', 1, { prompt: options.prompt.substring(0, 100) });
+
   return Buffer.from(imageResponse.data);
 }
 
@@ -90,6 +96,10 @@ export async function fillImage(options: FluxFillOptions): Promise<Buffer> {
 
   // Step 3: Download image
   const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+
+  // Track cost
+  costTracker.trackImageGeneration('flux-pro-fill', 'image-fill', 1, { prompt: options.prompt.substring(0, 100) });
+
   return Buffer.from(imageResponse.data);
 }
 

@@ -1,7 +1,9 @@
 import { v2 as cloudinary } from 'cloudinary';
 import dotenv from 'dotenv';
+import path from 'path';
+import { costTracker } from './costTracker';
 
-dotenv.config();
+dotenv.config({ path: path.resolve('/Users/anishgillella/Desktop/Stuff/Projects/uplane/.env') });
 
 // Configure Cloudinary
 cloudinary.config({
@@ -28,6 +30,8 @@ export async function uploadToCloudinary(
         if (error) {
           reject(error);
         } else if (result) {
+          // Track cost (free tier)
+          costTracker.trackImageGeneration('cloudinary', 'image-upload', 1);
           resolve({
             url: result.secure_url,
             publicId: result.public_id,

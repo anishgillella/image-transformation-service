@@ -1,7 +1,9 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
+import path from 'path';
+import { costTracker } from './costTracker';
 
-dotenv.config();
+dotenv.config({ path: path.resolve('/Users/anishgillella/Desktop/Stuff/Projects/uplane/.env') });
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
@@ -19,7 +21,7 @@ interface GeminiResponse {
 }
 
 /**
- * Send a chat completion request to Gemini 3 Flash via OpenRouter
+ * Send a chat completion request to Gemini 3 Flash Preview via OpenRouter
  */
 export async function chatWithGemini(
   messages: ChatMessage[],
@@ -31,7 +33,7 @@ export async function chatWithGemini(
   const response = await axios.post(
     OPENROUTER_URL,
     {
-      model: 'google/gemini-2.0-flash-001',
+      model: 'google/gemini-3-flash-preview',
       messages,
       temperature: options?.temperature ?? 0.7,
       max_tokens: options?.maxTokens ?? 2000,
@@ -46,12 +48,17 @@ export async function chatWithGemini(
     }
   );
 
+  const usage = {
+    promptTokens: response.data.usage?.prompt_tokens ?? 0,
+    completionTokens: response.data.usage?.completion_tokens ?? 0,
+  };
+
+  // Track cost
+  costTracker.trackTokenUsage('gemini-3-flash', 'chat-completion', usage);
+
   return {
     content: response.data.choices[0].message.content,
-    usage: {
-      promptTokens: response.data.usage?.prompt_tokens ?? 0,
-      completionTokens: response.data.usage?.completion_tokens ?? 0,
-    },
+    usage,
   };
 }
 
@@ -198,19 +205,19 @@ Generate the ad copy JSON:`;
 const STYLE_TEMPLATES = {
   minimal: {
     withProduct: `Clean, minimalist product photography backdrop. Solid or subtly textured background in {colors}. Soft, even studio lighting. Large negative space in center for product placement. Premium, high-end aesthetic. Sharp focus, no distractions. Professional advertising photography style.`,
-    withoutProduct: `Minimalist abstract composition. Clean geometric shapes or subtle gradients in {colors}. Elegant negative space. Premium, sophisticated aesthetic. Could work as a high-end brand ad backdrop. No text, no people. Sharp, modern, Apple-inspired visual style.`,
+    withoutProduct: `Minimalist product showcase. The product as hero element on clean background in {colors}. Premium studio photography lighting. Professional advertising aesthetic. Sharp focus on product details. High-end brand feel. No text overlays. 8K quality, commercial photography.`,
   },
   gradient: {
     withProduct: `Modern gradient background for product showcase. Smooth color transition using {colors}. Subtle light rays or bokeh effects. Clear central space for product. Contemporary, tech-forward aesthetic. Studio lighting with soft reflections. Professional product photography setup.`,
-    withoutProduct: `Dynamic gradient artwork. Bold, flowing color transitions using {colors}. Abstract light effects, lens flares, or particle effects. Modern, energetic, tech-forward mood. Suitable for SaaS or tech advertising. No text. High resolution, sharp details.`,
+    withoutProduct: `Product hero shot with dynamic gradient background. The product floating or displayed prominently with flowing color transitions using {colors}. Modern tech-forward aesthetic. Dramatic lighting with reflections. Professional advertising photography. No text. 8K quality.`,
   },
   abstract: {
     withProduct: `Artistic abstract background for product display. Creative shapes, textures, or patterns in {colors}. Artistic but not overwhelming - product should remain hero. Interesting visual texture. Contemporary art meets commercial photography. Clear central focal area.`,
-    withoutProduct: `Bold abstract art composition. Expressive shapes, dynamic forms, artistic texture in {colors}. Creative, thought-provoking, gallery-worthy aesthetic. Could be a campaign hero image. No text, no recognizable objects. High contrast, visually striking.`,
+    withoutProduct: `Product showcase with bold abstract art elements. The product as focal point surrounded by expressive shapes and artistic textures in {colors}. Creative advertising visual. Gallery-worthy aesthetic meets commercial photography. No text. High contrast, visually striking.`,
   },
   lifestyle: {
     withProduct: `Lifestyle scene background for product integration. {scene_context}. Natural lighting, warm and inviting atmosphere. Colors complementing {colors}. Shallow depth of field with blurred background. Clear foreground space for product. Authentic, aspirational mood.`,
-    withoutProduct: `Aspirational lifestyle photography. {scene_context}. Natural lighting, candid feel. Color palette incorporating {colors}. Evokes emotion and desire. No text overlays. Could be an Instagram ad or billboard. Professional photography quality.`,
+    withoutProduct: `Product in lifestyle context. The product naturally integrated into {scene_context}. Natural lighting, aspirational feel. Color palette incorporating {colors}. Shows the product in use or context. Professional lifestyle photography. No text overlays. Instagram-worthy quality.`,
   },
 };
 
@@ -259,16 +266,27 @@ Make it specific to the brand while following the template structure. Output ONL
 
   const sceneContext = sceneContexts[brandProfile.industry] || sceneContexts['default'];
 
+  // Check if this is a product-specific ad
+  const isProductAd = brandProfile.productName && brandProfile.productDescription;
+
   const userPrompt = `Create a Flux image generation prompt for:
 
 BRAND: ${brandProfile.companyName}
 INDUSTRY: ${brandProfile.industry}
 VISUAL STYLE: ${brandProfile.visualStyle}
-BRAND PERSONALITY: ${brandProfile.personality.join(', ')}
+BRAND PERSONALITY: ${brandProfile.personality?.join(', ') || 'professional, modern'}
 COLOR PALETTE: ${colorString}
 
+${isProductAd ? `PRODUCT BEING ADVERTISED:
+- Product Name: ${brandProfile.productName}
+- Product Description: ${brandProfile.productDescription}
+- Key Benefits: ${brandProfile.uniqueSellingPoints?.join(', ') || 'innovative, high-quality'}
+- Promotion Angle: ${brandProfile.promotionAngle || 'showcase the product'}
+
+IMPORTANT: This is a product-specific advertisement. The image MUST visually represent or evoke this specific product. For tech products like phones, show the device or tech-inspired visuals. For services, show relevant imagery.` : ''}
+
 AD STYLE: ${style}
-${hasProductImage ? 'REQUIREMENT: Must have clear, uncluttered central area for product compositing' : 'REQUIREMENT: Complete standalone visual, no product needed'}
+${hasProductImage ? 'REQUIREMENT: Must have clear, uncluttered central area for product compositing' : isProductAd ? 'REQUIREMENT: Generate a visual that clearly represents and advertises this specific product. Show the product or product-related imagery.' : 'REQUIREMENT: Complete standalone brand visual'}
 
 SCENE CONTEXT (for lifestyle): ${sceneContext}
 ${customInstructions ? `SPECIAL INSTRUCTIONS: ${customInstructions}` : ''}

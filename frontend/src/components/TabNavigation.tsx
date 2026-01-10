@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { Wand2, ImageIcon } from 'lucide-react';
 
 type Tab = 'adforge' | 'transformer';
@@ -13,13 +14,15 @@ const tabs = [
     id: 'adforge' as const,
     name: 'AdForge',
     icon: Wand2,
-    description: 'AI-powered ads'
+    description: 'AI-powered ads',
+    path: '/',
   },
   {
     id: 'transformer' as const,
     name: 'Image Transformer',
     icon: ImageIcon,
-    description: 'Remove & flip'
+    description: 'Remove & flip',
+    path: '/transformer',
   },
 ];
 
@@ -32,33 +35,29 @@ export function TabNavigation({ activeTab, onTabChange }: TabNavigationProps) {
       className="flex justify-center pt-8 pb-4"
     >
       <div className="relative inline-flex bg-white/80 backdrop-blur-xl rounded-2xl p-1.5 shadow-lg shadow-black/5 border border-gray-200/50">
-        {/* Animated background pill */}
-        <motion.div
-          layoutId="activeTabBg"
-          className="absolute inset-y-1.5 rounded-xl bg-black shadow-lg"
-          style={{
-            left: activeTab === 'adforge' ? '6px' : '50%',
-            right: activeTab === 'transformer' ? '6px' : '50%',
-          }}
-          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-        />
-
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
-            <motion.button
+            <Link
               key={tab.id}
+              to={tab.path}
               onClick={() => onTabChange(tab.id)}
               className={`
                 relative z-10 flex items-center gap-2.5 px-6 py-3 rounded-xl font-medium transition-colors duration-200
                 ${isActive ? 'text-white' : 'text-gray-600 hover:text-gray-900'}
               `}
-              whileHover={!isActive ? { scale: 1.02 } : {}}
-              whileTap={{ scale: 0.98 }}
             >
-              <tab.icon size={18} className={isActive ? 'text-white' : ''} />
-              <span className="text-sm font-semibold">{tab.name}</span>
-            </motion.button>
+              {/* Animated background pill - only render on active tab */}
+              {isActive && (
+                <motion.div
+                  layoutId="activeTabBg"
+                  className="absolute inset-0 rounded-xl bg-black shadow-lg"
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                />
+              )}
+              <tab.icon size={18} className={`relative z-10 ${isActive ? 'text-white' : ''}`} />
+              <span className="relative z-10 text-sm font-semibold">{tab.name}</span>
+            </Link>
           );
         })}
       </div>
