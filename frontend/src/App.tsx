@@ -8,6 +8,7 @@ import { UploadZone } from './components/UploadZone';
 import { ProcessingState } from './components/ProcessingState';
 import { ImageResult } from './components/ImageResult';
 import { AdForge } from './components/adforge/AdForge';
+import { CampaignList, CampaignCreate, CampaignView } from './components/campaigns';
 import { CostTracker } from './components/CostTracker';
 import { uploadImage } from './services/api';
 import type { ProcessedImage, AppState } from './types';
@@ -110,10 +111,17 @@ function AppLayout() {
   const location = useLocation();
 
   // Determine active tab from URL
-  const activeTab = location.pathname === '/transformer' ? 'transformer' : 'adforge';
+  const getActiveTab = (): 'adforge' | 'transformer' | 'campaigns' => {
+    if (location.pathname === '/transformer') return 'transformer';
+    if (location.pathname.startsWith('/campaigns')) return 'campaigns';
+    return 'adforge';
+  };
+  const activeTab = getActiveTab();
 
-  const handleTabChange = (tab: 'adforge' | 'transformer') => {
-    navigate(tab === 'adforge' ? '/' : '/transformer');
+  const handleTabChange = (tab: 'adforge' | 'transformer' | 'campaigns') => {
+    if (tab === 'adforge') navigate('/');
+    else if (tab === 'campaigns') navigate('/campaigns');
+    else navigate('/transformer');
   };
 
   return (
@@ -164,6 +172,49 @@ function AppLayout() {
                   className="flex-1 flex flex-col"
                 >
                   <ImageTransformerPage />
+                </motion.div>
+              }
+            />
+            {/* Campaign routes */}
+            <Route
+              path="/campaigns"
+              element={
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex-1"
+                >
+                  <CampaignList />
+                </motion.div>
+              }
+            />
+            <Route
+              path="/campaigns/new"
+              element={
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex-1"
+                >
+                  <CampaignCreate />
+                </motion.div>
+              }
+            />
+            <Route
+              path="/campaigns/:id"
+              element={
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex-1"
+                >
+                  <CampaignView />
                 </motion.div>
               }
             />

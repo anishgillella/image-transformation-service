@@ -1,0 +1,190 @@
+// This is your Prisma schema file
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Using SQLite for local development - switch to PostgreSQL for production
+datasource db {
+  provider = "sqlite"
+}
+
+// ============================================================
+// BRAND PROFILE - Stores analyzed brand information
+// ============================================================
+model BrandProfile {
+  id                String   @id @default(cuid())
+  companyName       String
+  url               String
+  personality       String   // JSON array stored as string
+  primaryColor      String
+  secondaryColor    String
+  accentColor       String
+  targetAudience    String
+  voiceTone         String
+  visualStyle       String
+  industry          String
+  uniqueSellingPoints String // JSON array stored as string
+  products          String   // JSON array of Product objects
+  analyzedAt        DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  campaigns         Campaign[]
+  ads               Ad[]
+  assets            BrandAsset[]
+
+  @@index([companyName])
+}
+
+// ============================================================
+// CAMPAIGN - Groups multiple ads for a marketing campaign
+// ============================================================
+model Campaign {
+  id              String         @id @default(cuid())
+  name            String
+  description     String?
+  status          CampaignStatus @default(DRAFT)
+
+  // Campaign settings
+  targetPlatforms String         // JSON array of platform IDs
+  style           String?        // Default style for campaign ads
+  customInstructions String?
+
+  // Relations
+  brandProfileId  String
+  brandProfile    BrandProfile   @relation(fields: [brandProfileId], references: [id], onDelete: Cascade)
+  ads             Ad[]
+
+  // Timestamps
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([brandProfileId])
+  @@index([status])
+}
+
+enum CampaignStatus {
+  DRAFT
+  GENERATING
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+// ============================================================
+// AD - Individual generated advertisement
+// ============================================================
+model Ad {
+  id                String    @id @default(cuid())
+
+  // Ad content
+  style             String    // minimal, gradient, abstract, lifestyle
+  imageUrl          String
+  headline          String
+  body              String
+  cta               String
+  hashtags          String    // JSON array stored as string
+
+  // Product info (optional - null means brand-level ad)
+  productName       String?
+  productIndex      Int?
+
+  // Image generation details
+  hasProductImage   Boolean   @default(false)
+  productImageUrl   String?
+  imagePrompt       String?   // The prompt used to generate the image
+
+  // Platform-specific exports
+  exports           AdExport[]
+
+  // Relations
+  brandProfileId    String
+  brandProfile      BrandProfile @relation(fields: [brandProfileId], references: [id], onDelete: Cascade)
+  campaignId        String?
+  campaign          Campaign?    @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  // Timestamps
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([brandProfileId])
+  @@index([campaignId])
+  @@index([style])
+}
+
+// ============================================================
+// AD EXPORT - Platform-specific exports of an ad
+// ============================================================
+model AdExport {
+  id          String   @id @default(cuid())
+
+  // Platform details
+  platform    String   // instagram-feed, instagram-story, facebook-feed, etc.
+  width       Int
+  height      Int
+  format      String   @default("png") // png or jpg
+
+  // Export result
+  url         String
+  publicId    String?  // Cloudinary public ID
+
+  // Relations
+  adId        String
+  ad          Ad       @relation(fields: [adId], references: [id], onDelete: Cascade)
+
+  // Timestamps
+  createdAt   DateTime @default(now())
+
+  @@unique([adId, platform])
+  @@index([adId])
+}
+
+// ============================================================
+// BRAND ASSET - Uploaded logos, images for a brand
+// ============================================================
+model BrandAsset {
+  id              String   @id @default(cuid())
+
+  // Asset info
+  type            String   // logo, image
+  name            String
+  url             String
+  publicId        String?  // Cloudinary public ID
+
+  // Metadata
+  width           Int?
+  height          Int?
+  format          String?
+
+  // Relations
+  brandProfileId  String
+  brandProfile    BrandProfile @relation(fields: [brandProfileId], references: [id], onDelete: Cascade)
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+
+  @@index([brandProfileId])
+  @@index([type])
+}
+
+// ============================================================
+// COST TRACKING - Track API costs per session/day
+// ============================================================
+model CostEntry {
+  id          String   @id @default(cuid())
+
+  // Cost details
+  service     String   // gemini, flux-pro, flux-fill, cloudinary, parallel-ai
+  operation   String   // chat-completion, image-generation, etc.
+  cost        Float
+  details     String?  // JSON with additional info (tokens, etc.)
+
+  // Timestamps
+  createdAt   DateTime @default(now())
+
+  @@index([service])
+  @@index([createdAt])
+}

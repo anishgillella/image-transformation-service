@@ -159,6 +159,47 @@ export interface BrandAssetLibrary {
   };
 }
 
+// Campaign types
+export type CampaignStatus = 'DRAFT' | 'GENERATING' | 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
+
+export interface Campaign {
+  id: string;
+  name: string;
+  description?: string;
+  status: CampaignStatus;
+  targetPlatforms: ExportPlatform[];
+  style?: AdStyle;
+  customInstructions?: string;
+  brandProfileId: string;
+  brandProfile?: {
+    id: string;
+    companyName: string;
+    primaryColor?: string;
+  };
+  ads?: GeneratedAd[];
+  adCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CampaignCreateInput {
+  name: string;
+  description?: string;
+  brandProfileId: string;
+  targetPlatforms: ExportPlatform[];
+  style?: AdStyle;
+  customInstructions?: string;
+}
+
+export interface CampaignUpdateInput {
+  name?: string;
+  description?: string;
+  targetPlatforms?: ExportPlatform[];
+  style?: AdStyle;
+  customInstructions?: string;
+  status?: CampaignStatus;
+}
+
 // Cost tracking types
 export interface CostEntry {
   id: string;

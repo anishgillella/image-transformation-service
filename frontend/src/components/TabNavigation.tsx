@@ -1,8 +1,8 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Wand2, ImageIcon } from 'lucide-react';
+import { Wand2, ImageIcon, Folder } from 'lucide-react';
 
-type Tab = 'adforge' | 'transformer';
+type Tab = 'adforge' | 'transformer' | 'campaigns';
 
 interface TabNavigationProps {
   activeTab: Tab;
@@ -16,6 +16,13 @@ const tabs = [
     icon: Wand2,
     description: 'AI-powered ads',
     path: '/',
+  },
+  {
+    id: 'campaigns' as const,
+    name: 'Campaigns',
+    icon: Folder,
+    description: 'Multi-platform',
+    path: '/campaigns',
   },
   {
     id: 'transformer' as const,
