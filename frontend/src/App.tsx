@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useState } from 'react';
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster, toast } from 'sonner';
 import { TabNavigation } from './components/TabNavigation';
@@ -7,13 +8,12 @@ import { UploadZone } from './components/UploadZone';
 import { ProcessingState } from './components/ProcessingState';
 import { ImageResult } from './components/ImageResult';
 import { AdForge } from './components/adforge/AdForge';
+import { CostTracker } from './components/CostTracker';
 import { uploadImage } from './services/api';
 import type { ProcessedImage, AppState } from './types';
 
-type Tab = 'adforge' | 'transformer';
-
-function App() {
-  const [activeTab, setActiveTab] = useState<Tab>('adforge');
+// Image Transformer Page Component
+function ImageTransformerPage() {
   const [state, setState] = useState<AppState>('idle');
   const [preview, setPreview] = useState<string>('');
   const [result, setResult] = useState<ProcessedImage | null>(null);
@@ -59,6 +59,64 @@ function App() {
   }, []);
 
   return (
+    <div className="flex-1 flex flex-col items-center justify-center p-8">
+      <AnimatePresence mode="wait">
+        {state === 'idle' && (
+          <motion.div
+            key="idle"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="flex flex-col items-center"
+          >
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="text-center mb-12"
+            >
+              <h1 className="text-5xl font-bold text-gray-900 mb-4 tracking-tight">
+                Image Transformer
+              </h1>
+              <p className="text-xl text-gray-500">
+                Remove background & flip horizontally
+              </p>
+            </motion.div>
+
+            <UploadZone onFileSelect={handleFileSelect} />
+          </motion.div>
+        )}
+
+        {state === 'processing' && (
+          <ProcessingState key="processing" status={statusText} preview={preview} />
+        )}
+
+        {state === 'complete' && result && (
+          <ImageResult
+            key="complete"
+            originalPreview={preview}
+            result={result}
+            onReset={handleReset}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// Main App Layout with Navigation
+function AppLayout() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Determine active tab from URL
+  const activeTab = location.pathname === '/transformer' ? 'transformer' : 'adforge';
+
+  const handleTabChange = (tab: 'adforge' | 'transformer') => {
+    navigate(tab === 'adforge' ? '/' : '/transformer');
+  };
+
+  return (
     <div className="min-h-screen flex flex-col relative">
       {/* Animated Background */}
       <AnimatedBackground />
@@ -75,73 +133,41 @@ function App() {
       />
 
       {/* Tab Navigation */}
-      <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+      <TabNavigation activeTab={activeTab} onTabChange={handleTabChange} />
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col">
         <AnimatePresence mode="wait">
-          {activeTab === 'adforge' ? (
-            <motion.div
-              key="adforge"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.3 }}
-              className="flex-1"
-            >
-              <AdForge />
-            </motion.div>
-          ) : (
-            <motion.div
-              key="transformer"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
-              className="flex-1 flex flex-col items-center justify-center p-8"
-            >
-              <AnimatePresence mode="wait">
-                {state === 'idle' && (
-                  <motion.div
-                    key="idle"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    className="flex flex-col items-center"
-                  >
-                    <motion.div
-                      initial={{ opacity: 0, y: -20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.1 }}
-                      className="text-center mb-12"
-                    >
-                      <h1 className="text-5xl font-bold text-gray-900 mb-4 tracking-tight">
-                        Image Transformer
-                      </h1>
-                      <p className="text-xl text-gray-500">
-                        Remove background & flip horizontally
-                      </p>
-                    </motion.div>
-
-                    <UploadZone onFileSelect={handleFileSelect} />
-                  </motion.div>
-                )}
-
-                {state === 'processing' && (
-                  <ProcessingState key="processing" status={statusText} preview={preview} />
-                )}
-
-                {state === 'complete' && result && (
-                  <ImageResult
-                    key="complete"
-                    originalPreview={preview}
-                    result={result}
-                    onReset={handleReset}
-                  />
-                )}
-              </AnimatePresence>
-            </motion.div>
-          )}
+          <Routes location={location} key={location.pathname}>
+            <Route
+              path="/"
+              element={
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex-1"
+                >
+                  <AdForge />
+                </motion.div>
+              }
+            />
+            <Route
+              path="/transformer"
+              element={
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex-1 flex flex-col"
+                >
+                  <ImageTransformerPage />
+                </motion.div>
+              }
+            />
+          </Routes>
         </AnimatePresence>
       </main>
 
@@ -154,7 +180,18 @@ function App() {
       >
         Built for Uplane
       </motion.footer>
+
+      {/* Cost Tracker */}
+      <CostTracker refreshInterval={3000} />
     </div>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AppLayout />
+    </BrowserRouter>
   );
 }
 

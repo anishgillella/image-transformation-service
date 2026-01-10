@@ -1,8 +1,10 @@
 import axios from 'axios';
 import FormData from 'form-data';
 import dotenv from 'dotenv';
+import path from 'path';
+import { costTracker } from './costTracker';
 
-dotenv.config();
+dotenv.config({ path: path.resolve('/Users/anishgillella/Desktop/Stuff/Projects/uplane/.env') });
 
 const REMOVE_BG_API_URL = 'https://api.remove.bg/v1.0/removebg';
 
@@ -25,6 +27,9 @@ export async function removeBackground(imageBuffer: Buffer): Promise<Buffer> {
     },
     responseType: 'arraybuffer',
   });
+
+  // Track cost
+  costTracker.trackImageGeneration('remove-bg', 'background-removal', 1);
 
   return Buffer.from(response.data);
 }

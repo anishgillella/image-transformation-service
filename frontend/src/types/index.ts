@@ -87,3 +87,34 @@ export type AdForgeState =
   | 'generating'
   | 'complete'
   | 'error';
+
+// Cost tracking types
+export interface CostEntry {
+  id: string;
+  timestamp: string;
+  model: string;
+  operation: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  imageCount?: number;
+  requestCount?: number;
+  cost: number;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ModelCostSummary {
+  displayName: string;
+  totalCost: number;
+  count: number;
+  tokens?: { input: number; output: number };
+  images?: number;
+  requests?: number;
+}
+
+export interface CostSummary {
+  success: boolean;
+  totalCost: number;
+  byModel: Record<string, ModelCostSummary>;
+  entries: CostEntry[];
+  sessionStart: string;
+}
