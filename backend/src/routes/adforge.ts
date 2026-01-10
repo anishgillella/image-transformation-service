@@ -102,7 +102,8 @@ router.post('/analyze', async (req: Request, res: Response) => {
  * Get a stored brand profile
  */
 router.get('/profile/:id', (req: Request, res: Response) => {
-  const profile = brandProfiles.get(req.params.id);
+  const id = req.params.id as string;
+  const profile = brandProfiles.get(id);
 
   if (!profile) {
     res.status(404).json({ success: false, error: 'Brand profile not found' });
@@ -117,7 +118,8 @@ router.get('/profile/:id', (req: Request, res: Response) => {
  * Update a brand profile (user corrections)
  */
 router.put('/profile/:id', (req: Request, res: Response) => {
-  const existingProfile = brandProfiles.get(req.params.id);
+  const id = req.params.id as string;
+  const existingProfile = brandProfiles.get(id);
 
   if (!existingProfile) {
     res.status(404).json({ success: false, error: 'Brand profile not found' });
@@ -131,7 +133,7 @@ router.put('/profile/:id', (req: Request, res: Response) => {
     analyzedAt: existingProfile.analyzedAt, // Preserve original analysis time
   };
 
-  brandProfiles.set(req.params.id, updatedProfile);
+  brandProfiles.set(id, updatedProfile);
 
   res.json({ success: true, brandProfile: updatedProfile });
 });
@@ -348,7 +350,8 @@ router.post('/generate', upload.single('productImage'), async (req: Request, res
  */
 router.post('/:id/regenerate-copy', async (req: Request, res: Response) => {
   try {
-    const ad = generatedAds.get(req.params.id);
+    const id = req.params.id as string;
+    const ad = generatedAds.get(id);
 
     if (!ad) {
       res.status(404).json({ success: false, error: 'Ad not found' });
@@ -369,7 +372,7 @@ router.post('/:id/regenerate-copy', async (req: Request, res: Response) => {
 
     // Update ad
     ad.copy = newCopy;
-    generatedAds.set(req.params.id, ad);
+    generatedAds.set(id, ad);
 
     res.json({ success: true, ad });
 
@@ -398,7 +401,8 @@ router.get('/ads', (req: Request, res: Response) => {
  * Get a specific ad
  */
 router.get('/ads/:id', (req: Request, res: Response) => {
-  const ad = generatedAds.get(req.params.id);
+  const id = req.params.id as string;
+  const ad = generatedAds.get(id);
 
   if (!ad) {
     res.status(404).json({ success: false, error: 'Ad not found' });
@@ -414,7 +418,8 @@ router.get('/ads/:id', (req: Request, res: Response) => {
  */
 router.delete('/ads/:id', async (req: Request, res: Response) => {
   try {
-    const ad = generatedAds.get(req.params.id);
+    const id = req.params.id as string;
+    const ad = generatedAds.get(id);
 
     if (!ad) {
       res.status(404).json({ success: false, error: 'Ad not found' });
@@ -432,7 +437,7 @@ router.delete('/ads/:id', async (req: Request, res: Response) => {
     }
 
     // Remove from memory
-    generatedAds.delete(req.params.id);
+    generatedAds.delete(id);
 
     res.json({ success: true, message: 'Ad deleted successfully' });
 
@@ -455,7 +460,8 @@ router.delete('/ads/:id', async (req: Request, res: Response) => {
  */
 router.post('/:id/generate-variations', async (req: Request, res: Response) => {
   try {
-    const ad = generatedAds.get(req.params.id);
+    const id = req.params.id as string;
+    const ad = generatedAds.get(id);
 
     if (!ad) {
       res.status(404).json({ success: false, error: 'Ad not found' });
@@ -479,9 +485,9 @@ router.post('/:id/generate-variations', async (req: Request, res: Response) => {
     }
 
     // Store variations
-    adCopyVariations.set(req.params.id, variations);
+    adCopyVariations.set(id, variations);
 
-    res.json({ success: true, variations, adId: req.params.id });
+    res.json({ success: true, variations, adId: id });
 
   } catch (error) {
     console.error('Error generating variations:', error);
@@ -497,7 +503,8 @@ router.post('/:id/generate-variations', async (req: Request, res: Response) => {
  * Get stored copy variations for an ad
  */
 router.get('/:id/variations', (req: Request, res: Response) => {
-  const variations = adCopyVariations.get(req.params.id);
+  const id = req.params.id as string;
+  const variations = adCopyVariations.get(id);
 
   if (!variations) {
     res.status(404).json({ success: false, error: 'No variations found for this ad' });
@@ -512,7 +519,8 @@ router.get('/:id/variations', (req: Request, res: Response) => {
  * Select specific copy from variations to use in the ad
  */
 router.put('/:id/select-copy', (req: Request, res: Response) => {
-  const ad = generatedAds.get(req.params.id);
+  const id = req.params.id as string;
+  const ad = generatedAds.get(id);
 
   if (!ad) {
     res.status(404).json({ success: false, error: 'Ad not found' });
@@ -527,7 +535,7 @@ router.put('/:id/select-copy', (req: Request, res: Response) => {
   if (cta) ad.copy.cta = cta;
   if (hashtags) ad.copy.hashtags = hashtags;
 
-  generatedAds.set(req.params.id, ad);
+  generatedAds.set(id, ad);
 
   res.json({ success: true, ad });
 });
@@ -542,7 +550,8 @@ router.put('/:id/select-copy', (req: Request, res: Response) => {
  */
 router.post('/:id/export', async (req: Request, res: Response) => {
   try {
-    const ad = generatedAds.get(req.params.id);
+    const id = req.params.id as string;
+    const ad = generatedAds.get(id);
 
     if (!ad) {
       res.status(404).json({ success: false, error: 'Ad not found' });
@@ -620,7 +629,8 @@ router.post('/:id/export', async (req: Request, res: Response) => {
  */
 router.post('/:id/export-all', async (req: Request, res: Response) => {
   try {
-    const ad = generatedAds.get(req.params.id);
+    const id = req.params.id as string;
+    const ad = generatedAds.get(id);
 
     if (!ad) {
       res.status(404).json({ success: false, error: 'Ad not found' });
@@ -710,7 +720,7 @@ router.get('/platforms', (_req: Request, res: Response) => {
  */
 router.post('/assets/:profileId', upload.single('asset'), async (req: Request, res: Response) => {
   try {
-    const { profileId } = req.params;
+    const profileId = req.params.profileId as string;
     const { type, name } = req.body as { type: 'logo' | 'image'; name?: string };
 
     if (!req.file) {
@@ -736,6 +746,7 @@ router.post('/assets/:profileId', upload.single('asset'), async (req: Request, r
         createdAt: new Date(),
         updatedAt: new Date(),
       };
+      brandAssetLibraries.set(profileId, library);
     }
 
     // Get image metadata
@@ -781,14 +792,15 @@ router.post('/assets/:profileId', upload.single('asset'), async (req: Request, r
  * Get all assets for a brand profile
  */
 router.get('/assets/:profileId', (req: Request, res: Response) => {
-  const library = brandAssetLibraries.get(req.params.profileId);
+  const profileId = req.params.profileId as string;
+  const library = brandAssetLibraries.get(profileId);
 
   if (!library) {
     // Return empty library
     res.json({
       success: true,
       library: {
-        profileId: req.params.profileId,
+        profileId,
         assets: [],
         colors: { primary: '#000000', secondary: '#ffffff', accent: '#0066ff', custom: [] },
       },
@@ -804,7 +816,7 @@ router.get('/assets/:profileId', (req: Request, res: Response) => {
  * Update brand colors in asset library
  */
 router.put('/assets/:profileId/colors', (req: Request, res: Response) => {
-  const { profileId } = req.params;
+  const profileId = req.params.profileId as string;
   const { primary, secondary, accent, custom } = req.body;
 
   let library = brandAssetLibraries.get(profileId);
@@ -816,6 +828,7 @@ router.put('/assets/:profileId/colors', (req: Request, res: Response) => {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
+    brandAssetLibraries.set(profileId, library);
   }
 
   // Update colors
@@ -847,7 +860,8 @@ router.put('/assets/:profileId/colors', (req: Request, res: Response) => {
  */
 router.delete('/assets/:profileId/:assetId', async (req: Request, res: Response) => {
   try {
-    const { profileId, assetId } = req.params;
+    const profileId = req.params.profileId as string;
+    const assetId = req.params.assetId as string;
 
     const library = brandAssetLibraries.get(profileId);
     if (!library) {

@@ -186,14 +186,17 @@ export function BatchGenerateModal({
       return;
     }
 
-    // Build batch items
+    // Build batch items - capture current selections to avoid stale closure
+    const currentSelectedProducts = Array.from(selectedProducts);
+    const currentSelectedStyles = Array.from(selectedStyles);
+
     const items: BatchItem[] = [];
-    console.log('[BatchGenerate] Selected products:', Array.from(selectedProducts));
-    console.log('[BatchGenerate] Selected styles:', Array.from(selectedStyles));
+    console.log('[BatchGenerate] Selected products:', currentSelectedProducts);
+    console.log('[BatchGenerate] Selected styles:', currentSelectedStyles);
     console.log('[BatchGenerate] Available products:', products.map((p, i) => `${i}: ${p.name}`));
 
-    for (const productIdx of selectedProducts) {
-      for (const style of selectedStyles) {
+    for (const productIdx of currentSelectedProducts) {
+      for (const style of currentSelectedStyles) {
         const productName = productIdx === null ? 'Brand' : products[productIdx]?.name || 'Unknown';
         console.log(`[BatchGenerate] Adding batch item: productIdx=${productIdx}, productName=${productName}, style=${style}`);
         items.push({
@@ -206,7 +209,10 @@ export function BatchGenerateModal({
     }
 
     console.log('[BatchGenerate] Total batch items:', items.length);
-    setBatchItems(items);
+
+    // Initialize state before starting
+    const initialItems = [...items];
+    setBatchItems(initialItems);
     setTotalSpent(0);
     setCompletedAds([]);
     setIsGenerating(true);
@@ -216,17 +222,20 @@ export function BatchGenerateModal({
     const costPerAd = includeProductImages ? COST_WITH_PRODUCT : COST_WITHOUT_PRODUCT;
     let spent = 0;
     const completed: GeneratedAd[] = [];
-    let processedCount = 0;
+
+    // Use a mutable copy to track state changes
+    const itemsState = initialItems.map(item => ({ ...item }));
 
     // Process items in parallel batches
     for (let batchStart = 0; batchStart < items.length; batchStart += PARALLEL_BATCH_SIZE) {
       // Check for cancellation before starting a new batch
       if (cancelRef.current) {
-        setBatchItems((prev) =>
-          prev.map((item, idx) =>
-            idx >= batchStart && item.status === 'pending' ? { ...item, status: 'cancelled' } : item
-          )
-        );
+        for (let i = batchStart; i < items.length; i++) {
+          if (itemsState[i].status === 'pending') {
+            itemsState[i].status = 'cancelled';
+          }
+        }
+        setBatchItems([...itemsState]);
         break;
       }
 
@@ -240,11 +249,12 @@ export function BatchGenerateModal({
         const affordable = Math.floor((budgetLimit - spent) / costPerAd);
         if (affordable <= 0) {
           toast.warning(`Budget limit of $${budgetLimit.toFixed(2)} reached`);
-          setBatchItems((prev) =>
-            prev.map((item, idx) =>
-              idx >= batchStart && item.status === 'pending' ? { ...item, status: 'cancelled' } : item
-            )
-          );
+          for (let i = batchStart; i < items.length; i++) {
+            if (itemsState[i].status === 'pending') {
+              itemsState[i].status = 'cancelled';
+            }
+          }
+          setBatchItems([...itemsState]);
           break;
         }
       }
@@ -254,11 +264,10 @@ export function BatchGenerateModal({
       const batchIndices = Array.from({ length: batchEnd - batchStart }, (_, i) => batchStart + i);
 
       // Mark batch items as generating
-      setBatchItems((prev) =>
-        prev.map((item, idx) =>
-          batchIndices.includes(idx) ? { ...item, status: 'generating' } : item
-        )
-      );
+      for (const idx of batchIndices) {
+        itemsState[idx].status = 'generating';
+      }
+      setBatchItems([...itemsState]);
 
       // Generate all items in this batch in parallel
       const batchPromises = batchIndices.map((idx) =>
@@ -267,31 +276,27 @@ export function BatchGenerateModal({
 
       const results = await Promise.all(batchPromises);
 
-      // Process results
+      // Process results and update state
       for (const result of results) {
-        processedCount++;
-
         if (result.success && result.ad) {
           spent += costPerAd;
           completed.push(result.ad);
-
-          setBatchItems((prev) =>
-            prev.map((item, idx) =>
-              idx === result.index ? { ...item, status: 'complete', ad: result.ad } : item
-            )
-          );
+          itemsState[result.index] = {
+            ...itemsState[result.index],
+            status: 'complete',
+            ad: result.ad,
+          };
         } else {
-          setBatchItems((prev) =>
-            prev.map((item, idx) =>
-              idx === result.index
-                ? { ...item, status: 'error', error: result.error }
-                : item
-            )
-          );
+          itemsState[result.index] = {
+            ...itemsState[result.index],
+            status: 'error',
+            error: result.error,
+          };
         }
       }
 
-      // Update totals after batch completes
+      // Update all state after processing batch results
+      setBatchItems([...itemsState]);
       setTotalSpent(spent);
       setCompletedAds([...completed]);
     }

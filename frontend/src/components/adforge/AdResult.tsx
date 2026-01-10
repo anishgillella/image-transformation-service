@@ -11,6 +11,7 @@ import {
   ExternalLink,
   Eye,
   FileDown,
+  ArrowLeft,
 } from 'lucide-react';
 import type { GeneratedAd } from '../../types';
 import { ExportModal } from './ExportModal';
@@ -24,6 +25,7 @@ interface AdResultProps {
   profileId?: string;
   onRegenerateCopy: () => void;
   onStartOver: () => void;
+  onBack?: () => void;
   isRegenerating: boolean;
   onAdUpdate?: (ad: GeneratedAd) => void;
 }
@@ -34,6 +36,7 @@ export function AdResult({
   profileId,
   onRegenerateCopy,
   onStartOver,
+  onBack,
   isRegenerating,
   onAdUpdate,
 }: AdResultProps) {
@@ -119,15 +122,28 @@ export function AdResult({
           </div>
         </div>
 
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={onStartOver}
-          className="flex items-center gap-2 px-4 py-2.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-colors"
-        >
-          <RotateCcw size={18} />
-          Start Over
-        </motion.button>
+        <div className="flex items-center gap-2">
+          {onBack && (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={onBack}
+              className="flex items-center gap-2 px-4 py-2.5 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 rounded-xl transition-colors font-medium"
+            >
+              <ArrowLeft size={18} />
+              Back to Results
+            </motion.button>
+          )}
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={onStartOver}
+            className="flex items-center gap-2 px-4 py-2.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-colors"
+          >
+            <RotateCcw size={18} />
+            Start Over
+          </motion.button>
+        </div>
       </motion.div>
 
       <div className="grid grid-cols-2 gap-8">

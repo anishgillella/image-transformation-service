@@ -78,7 +78,8 @@ router.get('/', (req: Request, res: Response) => {
  * Get a single image by ID
  */
 router.get('/:id', (req: Request, res: Response) => {
-  const image = imageStore.get(req.params.id);
+  const id = req.params.id as string;
+  const image = imageStore.get(id);
 
   if (!image) {
     res.status(404).json({ success: false, error: 'Image not found' });
@@ -94,7 +95,8 @@ router.get('/:id', (req: Request, res: Response) => {
  */
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
-    const image = imageStore.get(req.params.id);
+    const id = req.params.id as string;
+    const image = imageStore.get(id);
 
     if (!image) {
       res.status(404).json({ success: false, error: 'Image not found' });
@@ -105,7 +107,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
     await deleteFromCloudinary(image.publicId);
 
     // Remove from memory
-    imageStore.delete(req.params.id);
+    imageStore.delete(id);
 
     res.json({ success: true, message: 'Image deleted successfully' });
   } catch (error) {

@@ -10,6 +10,7 @@ import {
   List,
   Package,
   Building2,
+  ArrowLeft,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { GeneratedAd } from '../../types';
@@ -27,6 +28,7 @@ interface BatchResultsGalleryProps {
   brandName: string;
   onStartOver: () => void;
   onViewAd: (ad: GeneratedAd) => void;
+  onBack?: () => void;
 }
 
 export function BatchResultsGallery({
@@ -34,6 +36,7 @@ export function BatchResultsGallery({
   brandName,
   onStartOver,
   onViewAd,
+  onBack,
 }: BatchResultsGalleryProps) {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedAds, setSelectedAds] = useState<Set<string>>(new Set());
@@ -102,15 +105,28 @@ export function BatchResultsGallery({
           </div>
         </div>
 
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={onStartOver}
-          className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors"
-        >
-          <RotateCcw size={18} />
-          Start Over
-        </motion.button>
+        <div className="flex items-center gap-2">
+          {onBack && (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={onBack}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 rounded-xl transition-colors font-medium"
+            >
+              <ArrowLeft size={18} />
+              Back
+            </motion.button>
+          )}
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={onStartOver}
+            className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors"
+          >
+            <RotateCcw size={18} />
+            Start Over
+          </motion.button>
+        </div>
       </motion.div>
 
       {/* Controls */}
