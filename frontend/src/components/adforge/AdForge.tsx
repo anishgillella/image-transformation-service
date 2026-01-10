@@ -23,6 +23,7 @@ import type {
 
 export function AdForge() {
   const [state, setState] = useState<AdForgeState>('idle');
+  const [previousState, setPreviousState] = useState<AdForgeState | null>(null);
   const [analyzingUrl, setAnalyzingUrl] = useState('');
   const [profileId, setProfileId] = useState<string | null>(null);
   const [brandProfile, setBrandProfile] = useState<BrandProfile | null>(null);
@@ -139,12 +140,35 @@ export function AdForge() {
   // Handle batch generation complete
   const handleBatchComplete = useCallback((ads: GeneratedAd[]) => {
     setBatchAds(ads);
+    setPreviousState(null);
     setState('batch-complete');
+  }, []);
+
+  // Handle back navigation (from single ad view back to batch results)
+  const handleBack = useCallback(() => {
+    if (previousState === 'batch-complete' && batchAds.length > 0) {
+      setState('batch-complete');
+      setGeneratedAd(null);
+      setPreviousState(null);
+    } else {
+      // Default to configuring state
+      setState('configuring');
+      setGeneratedAd(null);
+      setPreviousState(null);
+    }
+  }, [previousState, batchAds]);
+
+  // Handle back from batch results to configuration
+  const handleBackToConfig = useCallback(() => {
+    setState('configuring');
+    setBatchAds([]);
+    setPreviousState(null);
   }, []);
 
   // Start over
   const handleStartOver = useCallback(() => {
     setState('idle');
+    setPreviousState(null);
     setAnalyzingUrl('');
     setProfileId(null);
     setBrandProfile(null);
@@ -255,6 +279,7 @@ export function AdForge() {
               profileId={profileId || undefined}
               onRegenerateCopy={handleRegenerateCopy}
               onStartOver={handleStartOver}
+              onBack={previousState ? handleBack : undefined}
               isRegenerating={isRegenerating}
               onAdUpdate={setGeneratedAd}
             />
@@ -273,7 +298,9 @@ export function AdForge() {
               ads={batchAds}
               brandName={brandProfile?.companyName || ''}
               onStartOver={handleStartOver}
+              onBack={handleBackToConfig}
               onViewAd={(ad) => {
+                setPreviousState('batch-complete');
                 setGeneratedAd(ad);
                 setState('complete');
               }}
