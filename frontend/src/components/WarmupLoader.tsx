@@ -103,7 +103,7 @@ interface WarmupLoaderProps {
   message?: string;
 }
 
-export function WarmupLoader({ onReady, message = "Waking up our servers..." }: WarmupLoaderProps) {
+export function WarmupLoader({ message = "Waking up our servers..." }: WarmupLoaderProps) {
   const [currentTipIndex, setCurrentTipIndex] = useState(0);
   const [progress, setProgress] = useState(0);
 

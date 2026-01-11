@@ -112,7 +112,7 @@ function ImageTransformerPage() {
 function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isWarming, isReady, checkHealth } = useBackendWarmup();
+  const { isWarming, checkHealth } = useBackendWarmup();
   const [initialCheckDone, setInitialCheckDone] = useState(false);
 
   // Check backend health on initial load

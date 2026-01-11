@@ -39,7 +39,7 @@ export function UsageDashboard() {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [monthlyResponse, costsResponse] = await Promise.all([
+      const [monthlyResponse] = await Promise.all([
         getMonthlyUsage(),
         getCosts(),
       ]);

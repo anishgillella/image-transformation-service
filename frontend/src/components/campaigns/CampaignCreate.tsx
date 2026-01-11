@@ -16,7 +16,7 @@ import {
 import { toast } from 'sonner';
 import { createCampaign, getCampaignPlatforms } from '../../services/campaign-api';
 import { analyzeCompany } from '../../services/adforge-api';
-import type { PlatformInfo, AdStyle, BrandProfile, ExportPlatform, Product } from '../../types';
+import type { PlatformInfo, AdStyle, BrandProfile, ExportPlatform } from '../../types';
 
 const STYLES: { id: AdStyle; name: string; description: string; color: string }[] = [
   { id: 'minimal', name: 'Minimal', description: 'Clean and simple', color: 'bg-gray-700' },
