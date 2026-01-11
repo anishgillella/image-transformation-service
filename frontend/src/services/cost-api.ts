@@ -85,3 +85,21 @@ export async function getAllCampaignsWithCosts(): Promise<{
   const response = await fetch(`${API_URL}/costs/campaigns`);
   return response.json();
 }
+
+/**
+ * Backfill costs for existing ads that don't have cost data
+ */
+export async function backfillCosts(): Promise<{
+  success: boolean;
+  message: string;
+  updated: number;
+  estimatedCostPerAd?: number;
+}> {
+  const response = await fetch(`${API_URL}/costs/backfill`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+  return response.json();
+}

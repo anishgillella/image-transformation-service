@@ -13,7 +13,7 @@ import {
   Folder,
   ChevronRight,
 } from 'lucide-react';
-import { getMonthlyUsage, getCosts, getAllCampaignsWithCosts } from '../services/cost-api';
+import { getMonthlyUsage, getCosts, getAllCampaignsWithCosts, backfillCosts } from '../services/cost-api';
 
 // Service display names and colors
 const SERVICE_INFO: Record<string, { name: string; color: string; icon: React.ReactNode }> = {
@@ -52,6 +52,9 @@ export function UsageDashboard() {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
+      // First, backfill any ads that don't have cost data
+      await backfillCosts().catch((e) => console.warn('Backfill failed:', e));
+
       const [monthlyResponse, , campaignsResponse] = await Promise.all([
         getMonthlyUsage(),
         getCosts(),
