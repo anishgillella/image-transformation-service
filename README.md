@@ -1,266 +1,218 @@
-# 🎨 Image Transformation Service
+# AdForge - AI-Powered Ad Generation Platform
 
-A full-stack application that allows users to upload images, automatically remove backgrounds, flip them horizontally, and manage their transformed images online.
+AdForge is a full-stack application that generates professional marketing ads using AI. Simply enter a company URL, and AdForge analyzes the brand, extracts products, and creates stunning, platform-optimized advertisements.
 
-## 🌟 Features
+## Live Demo
 
-### Core Functionality
-- **Image Upload**: Simple, intuitive interface for uploading single image files
-- **Background Removal**: Automatic background removal using third-party AI services
-- **Horizontal Flip**: Automatic horizontal flipping of processed images
-- **Image Hosting**: Processed images hosted online with unique, shareable URLs
-- **Image Management**: Delete functionality to remove uploaded and processed images
+- **Frontend**: [https://image-transformation-service.vercel.app](https://image-transformation-service.vercel.app)
+- **Backend API**: [https://image-transformation-service-7r75.onrender.com](https://image-transformation-service-7r75.onrender.com)
 
-## 🏗️ Architecture
+## Features
 
-### Technology Stack
+### AdForge - AI Ad Generation
+- **Brand Analysis**: Automatically analyze any website to extract brand identity, colors, voice, and products
+- **AI Image Generation**: Generate professional ad images using Flux Pro 1.1
+- **Smart Copywriting**: AI-generated headlines, body text, CTAs, and hashtags
+- **Multiple Ad Styles**: Choose from Minimal, Gradient, Abstract, or Lifestyle styles
+- **Platform Optimization**: Export ads sized for Instagram, Facebook, Twitter, LinkedIn, Pinterest, and TikTok
+- **Batch Generation**: Generate multiple ads for different products at once
 
-**Frontend:**
-- Modern React-based UI with TypeScript
-- Intuitive drag-and-drop upload interface
-- Real-time processing status updates
-- Image preview and management dashboard
+### Campaign Mode
+- **Campaign Management**: Create and organize marketing campaigns
+- **Multi-Platform Support**: Target multiple social media platforms per campaign
+- **Product Selection**: Choose specific products to feature in campaigns
+- **Progress Tracking**: Real-time status updates during ad generation
 
-**Backend:**
-- Node.js/Express with TypeScript
-- RESTful API endpoints
-- Integration with third-party background removal service
-- Image processing pipeline (background removal → horizontal flip)
-- Secure file storage and retrieval
+### Image Transformer
+- **Background Removal**: Remove backgrounds from images using AI
+- **Horizontal Flip**: Automatically flip processed images
+- **Cloud Storage**: All images hosted on Cloudinary with shareable URLs
 
-**Hosting & Storage:**
-- Cloud-based image hosting
-- Unique URL generation for processed images
-- Persistent storage for image management
+### Cost Tracking
+- **Real-time Cost Display**: Track API costs as you generate ads
+- **Per-Service Breakdown**: See costs by Gemini, Flux Pro, Cloudinary, etc.
+- **Monthly Usage**: View historical spending patterns
 
-## 📋 Project Structure
+## Tech Stack
+
+### Frontend
+- **React 19** with TypeScript
+- **Vite** for fast development and builds
+- **Tailwind CSS 4** for styling
+- **Framer Motion** for animations
+- **React Router** for navigation
+- **Sonner** for toast notifications
+
+### Backend
+- **Node.js** with Express 5
+- **TypeScript** for type safety
+- **Prisma ORM** with PostgreSQL (Supabase)
+- **Multer** for file uploads
+
+### AI Services
+- **Google Gemini** (via OpenRouter) - Brand analysis and copywriting
+- **Flux Pro 1.1** (via BFL API) - Image generation
+- **Remove.bg** - Background removal
+- **Cloudinary** - Image hosting and transformations
+
+### Deployment
+- **Frontend**: Vercel (free tier)
+- **Backend**: Render (free tier)
+- **Database**: Supabase PostgreSQL (free tier)
+
+## Project Structure
 
 ```
-uplane/
+adforge/
 ├── frontend/                 # React TypeScript application
 │   ├── src/
-│   │   ├── components/      # Reusable UI components
-│   │   ├── pages/           # Page components
-│   │   ├── services/        # API service calls
-│   │   ├── hooks/           # Custom React hooks
-│   │   └── App.tsx          # Main application component
-│   ├── public/              # Static assets
-│   └── package.json         # Frontend dependencies
+│   │   ├── components/       # UI components
+│   │   │   ├── adforge/      # AdForge-specific components
+│   │   │   └── campaigns/    # Campaign management components
+│   │   ├── services/         # API service calls
+│   │   ├── hooks/            # Custom React hooks
+│   │   └── App.tsx           # Main application
+│   └── package.json
 │
-├── backend/                 # Node.js/Express TypeScript application
+├── backend/                  # Express TypeScript API
 │   ├── src/
-│   │   ├── routes/          # API route handlers
-│   │   ├── controllers/     # Business logic
-│   │   ├── services/        # External service integrations
-│   │   ├── middleware/      # Express middleware
-│   │   ├── utils/           # Utility functions
-│   │   ├── types/           # TypeScript type definitions
-│   │   └── index.ts         # Server entry point
-│   ├── uploads/             # Temporary upload directory
-│   └── package.json         # Backend dependencies
+│   │   ├── routes/           # API endpoints
+│   │   │   ├── adforge.ts    # Ad generation routes
+│   │   │   ├── campaigns.ts  # Campaign management
+│   │   │   └── images.ts     # Image processing
+│   │   ├── services/         # Business logic
+│   │   │   ├── gemini.ts     # AI text generation
+│   │   │   ├── flux.ts       # AI image generation
+│   │   │   ├── cloudinary.ts # Image hosting
+│   │   │   └── costTracker.ts # Usage tracking
+│   │   └── index.ts          # Server entry point
+│   ├── prisma/
+│   │   └── schema.prisma     # Database schema
+│   └── package.json
 │
-└── README.md               # This file
+└── README.md
 ```
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
-- Node.js (v16 or higher)
-- npm or yarn package manager
-- GitHub account for repository access
-- API key for background removal service (free tier)
+- Node.js 18+
+- npm or yarn
+- PostgreSQL database (or Supabase account)
 
-### Installation & Setup
+### Environment Variables
 
-#### Backend Setup
+**Backend (.env)**
+```env
+# Database
+DATABASE_URL=postgresql://...
+DIRECT_URL=postgresql://...
+
+# AI Services
+OPENROUTER_API_KEY=your_key
+BFL_API_KEY=your_key
+PARALLEL_API_KEY=your_key
+
+# Image Services
+CLOUDINARY_CLOUD_NAME=your_cloud
+CLOUDINARY_API_KEY=your_key
+CLOUDINARY_API_SECRET=your_secret
+REMOVE_BG_API_KEY=your_key
+
+# Server
+PORT=3000
+NODE_ENV=development
+```
+
+**Frontend (.env)**
+```env
+VITE_API_URL=http://localhost:3000/api
+```
+
+### Local Development
+
+**Backend**
 ```bash
 cd backend
 npm install
-npm run build
-npm start
+npx prisma generate
+npx prisma migrate dev
+npm run dev
 ```
 
-#### Frontend Setup
+**Frontend**
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-The application will be available at `http://localhost:3000` (frontend) and the backend API at `http://localhost:5000`.
+The app will be available at `http://localhost:5173` (frontend) and `http://localhost:3000` (backend API).
 
-## 📖 API Endpoints
+## API Endpoints
 
-### Upload Image
-- **POST** `/api/upload`
-- Upload a single image file for processing
-- Returns: Unique image ID and processing status
+### AdForge
+- `POST /api/adforge/analyze` - Analyze a company website
+- `POST /api/adforge/generate` - Generate an ad from brand profile
+- `POST /api/adforge/generate-batch` - Generate multiple ads
+- `GET /api/adforge/brand-profiles` - List saved brand profiles
+- `GET /api/adforge/ads` - List generated ads
 
-### Get Processed Image
-- **GET** `/api/images/:imageId`
-- Retrieve details about a processed image including URL
-- Returns: Image metadata and hosted URL
+### Campaigns
+- `GET /api/campaigns` - List all campaigns
+- `POST /api/campaigns` - Create a new campaign
+- `GET /api/campaigns/:id` - Get campaign details
+- `POST /api/campaigns/:id/generate` - Generate ads for campaign
+- `DELETE /api/campaigns/:id` - Delete a campaign
 
-### Delete Image
-- **DELETE** `/api/images/:imageId`
-- Remove an image and its processed version
-- Returns: Confirmation of deletion
+### Images
+- `POST /api/images/upload` - Upload and process an image
+- `GET /api/images` - List all images
+- `DELETE /api/images/:id` - Delete an image
 
-### List User Images
-- **GET** `/api/images`
-- Retrieve all images for the current user
-- Returns: Array of image metadata
+### Costs
+- `GET /api/costs` - Get cost summary
+- `GET /api/costs/monthly` - Get monthly breakdown
+- `GET /api/health` - Health check endpoint
 
-## 🔧 Configuration
+## Deployment
 
-### Environment Variables
+### Deploy Backend to Render
 
-Create `.env` files in both frontend and backend directories:
+1. Create a new Web Service on [Render](https://render.com)
+2. Connect your GitHub repo
+3. Configure:
+   - **Root Directory**: `backend`
+   - **Build Command**: `npm install && npm run build`
+   - **Start Command**: `npm start`
+4. Add environment variables
+5. Deploy
 
-**Backend (.env)**
-```
-NODE_ENV=production
-PORT=5000
-DATABASE_URL=your_database_url
-BACKGROUND_REMOVAL_API_KEY=your_api_key
-BACKGROUND_REMOVAL_SERVICE=service_name
-IMAGE_STORAGE_BUCKET=your_bucket_name
-```
+### Deploy Frontend to Vercel
 
-**Frontend (.env)**
-```
-REACT_APP_API_BASE_URL=https://your-backend-url
-REACT_APP_ENVIRONMENT=production
-```
+1. Import project on [Vercel](https://vercel.com)
+2. Configure:
+   - **Root Directory**: `frontend`
+   - **Framework Preset**: Vite
+3. Add environment variable:
+   - `VITE_API_URL`: Your Render backend URL + `/api`
+4. Deploy
 
-## 🎯 User Flow
+## Cost Estimates (Free Tiers)
 
-1. **Upload**: User selects and uploads an image via the web interface
-2. **Process**: Backend receives image and processes it:
-   - Removes background using AI service
-   - Flips the image horizontally
-3. **Host**: Processed image is uploaded to cloud storage
-4. **Share**: User receives unique URL to access their image
-5. **Manage**: User can view all their images and delete any as needed
+| Service | Free Tier |
+|---------|-----------|
+| Vercel | 100GB bandwidth/month |
+| Render | 750 hours/month |
+| Supabase | 500MB database, 2GB bandwidth |
+| Cloudinary | 25 credits/month |
+| OpenRouter | Pay-per-use (~$0.001/request) |
+| BFL (Flux) | Pay-per-use (~$0.04/image) |
 
-## 🔌 Third-Party Integrations
+## License
 
-### Background Removal Service
-The application integrates with a free/trial-based background removal service such as:
-- **Remove.bg** - High-quality background removal with free tier
-- **Cloudinary** - Image transformation API with background removal
-- **Pixlr** - Cloud-based image editing API
-
-**Note**: The project uses free credits/trial periods to avoid costs during development and testing.
-
-## 📦 Deployment
-
-### Frontend Deployment
-- Recommended: Vercel, Netlify, or GitHub Pages
-- Build process: `npm run build`
-- Environment variables configured before deployment
-
-### Backend Deployment
-- Recommended: Render, Heroku, Railway, or AWS
-- Docker support for containerized deployment
-- Database migrations handled automatically
-- Environment variables secured through platform settings
-
-## 🧪 Testing
-
-### Frontend Testing
-```bash
-cd frontend
-npm test
-```
-
-### Backend Testing
-```bash
-cd backend
-npm test
-```
-
-## 📝 Code Style & Standards
-
-- **TypeScript**: Strict mode enabled for type safety
-- **ESLint**: Code linting and formatting standards
-- **Prettier**: Automatic code formatting
-- **Git Hooks**: Pre-commit checks via Husky
-
-## 🔐 Security Considerations
-
-- File upload validation (size, type, format)
-- Secure API authentication and authorization
-- CORS configuration for frontend-backend communication
-- Input sanitization and validation
-- Secure storage of API keys and credentials
-- HTTPS enforcement in production
-
-## 🎨 UI/UX Features
-
-- **Responsive Design**: Works seamlessly on mobile, tablet, and desktop
-- **Drag & Drop**: Intuitive file upload interface
-- **Real-time Feedback**: Loading states and progress indicators
-- **Image Preview**: View original and processed images side-by-side
-- **Error Handling**: Clear error messages for troubleshooting
-- **Accessibility**: WCAG compliance for all users
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**Upload Fails**
-- Check file size (ensure under limit)
-- Verify file format is supported (JPG, PNG, WebP)
-- Confirm backend is running and accessible
-
-**Background Removal Not Working**
-- Verify API key is valid and active
-- Check API rate limits haven't been exceeded
-- Review service documentation for supported image types
-
-**Images Not Loading**
-- Confirm storage bucket is accessible
-- Check image URL in browser console
-- Verify CORS settings on backend
-
-## 📚 Documentation
-
-For detailed documentation on specific features, see:
-- **Backend API**: `backend/API_DOCS.md`
-- **Frontend Components**: `frontend/COMPONENT_DOCS.md`
-- **Deployment Guide**: `DEPLOYMENT.md`
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🎉 Have Fun!
-
-This challenge is designed to be enjoyable and engaging. Feel free to:
-- Add extra features beyond the core requirements
-- Experiment with different UI designs
-- Optimize performance and user experience
-- Contribute creative enhancements
-
-Remember: The goal is to have fun while building something useful! 🚀
-
-## 📞 Support & Questions
-
-For issues, questions, or suggestions:
-1. Check existing GitHub issues
-2. Create a new issue with detailed description
-3. Include reproduction steps and error messages
-4. Attach relevant screenshots or logs
+MIT License - feel free to use this project for learning or as a starting point for your own projects.
 
 ---
 
-**Ready to get started?** Clone the repository, follow the setup guide, and begin building! 🎨✨
+Built with AdForge
