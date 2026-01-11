@@ -5,7 +5,8 @@ import path from 'path';
 import imageRoutes from './routes/images';
 import adforgeRoutes from './routes/adforge';
 import campaignRoutes from './routes/campaigns';
-import { costTracker } from './services/costTracker';
+import { costTracker, MODEL_PRICING } from './services/costTracker';
+import { prisma } from './services/database';
 
 // Load environment variables
 // Production (Render): env vars are already set via dashboard
@@ -81,6 +82,80 @@ app.get('/api/costs/campaigns', async (req, res) => {
   } catch (error) {
     console.error('Error getting campaigns with costs:', error);
     res.status(500).json({ success: false, error: 'Failed to get campaigns with costs' });
+  }
+});
+
+// Backfill endpoint to estimate and set costs for existing ads without cost data
+app.post('/api/costs/backfill', async (req, res) => {
+  try {
+    // Find all ads without cost data
+    const adsWithoutCosts = await prisma.ad.findMany({
+      where: {
+        OR: [
+          { generationCost: null },
+          { generationCost: 0 },
+        ],
+      },
+      select: {
+        id: true,
+        productName: true,
+        campaignId: true,
+      },
+    });
+
+    if (adsWithoutCosts.length === 0) {
+      res.json({ success: true, message: 'No ads need cost backfilling', updated: 0 });
+      return;
+    }
+
+    // Estimate costs based on typical ad generation:
+    // - Image prompt generation: ~500 input tokens, ~200 output tokens
+    // - Ad copy generation: ~800 input tokens, ~150 output tokens
+    // - Image generation: 1 Flux Pro image
+    // - Upload: Free (Cloudinary)
+    const promptGenCost = (500 / 1000) * MODEL_PRICING['gemini-3-flash'].input +
+                          (200 / 1000) * MODEL_PRICING['gemini-3-flash'].output;
+    const copyGenCost = (800 / 1000) * MODEL_PRICING['gemini-3-flash'].input +
+                        (150 / 1000) * MODEL_PRICING['gemini-3-flash'].output;
+    const imageGenCost = MODEL_PRICING['flux-pro-1.1'].perImage;
+
+    const totalCopyGenCost = promptGenCost + copyGenCost;
+    const totalCost = imageGenCost + totalCopyGenCost;
+
+    const costBreakdown = {
+      imageGeneration: imageGenCost,
+      copyGeneration: totalCopyGenCost,
+      backgroundRemoval: 0,
+      upload: 0,
+      total: totalCost,
+    };
+
+    // Update all ads without costs
+    const updateResult = await prisma.ad.updateMany({
+      where: {
+        OR: [
+          { generationCost: null },
+          { generationCost: 0 },
+        ],
+      },
+      data: {
+        generationCost: totalCost,
+        costBreakdown: JSON.stringify(costBreakdown),
+      },
+    });
+
+    console.log(`Backfilled costs for ${updateResult.count} ads at $${totalCost.toFixed(4)} each`);
+
+    res.json({
+      success: true,
+      message: `Backfilled costs for ${updateResult.count} ads`,
+      updated: updateResult.count,
+      estimatedCostPerAd: totalCost,
+      costBreakdown,
+    });
+  } catch (error) {
+    console.error('Error backfilling costs:', error);
+    res.status(500).json({ success: false, error: 'Failed to backfill costs' });
   }
 });
 

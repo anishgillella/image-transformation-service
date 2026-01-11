@@ -12,6 +12,7 @@ const CampaignStatus = {
 import { generateAdCopy, generateImagePrompt } from '../services/gemini';
 import { generateImage } from '../services/flux';
 import { uploadToCloudinary } from '../services/cloudinary';
+import { costTracker, MODEL_PRICING } from '../services/costTracker';
 
 const router = Router();
 
@@ -450,6 +451,12 @@ async function generateCampaignAds(campaign: any, targetPlatforms: string[]) {
             promotionAngle: target.product.promotionAngle,
           } : brandContext;
 
+          // Initialize cost tracking for this ad
+          let copyGenerationCost = 0;
+          let imageGenerationCost = 0;
+          const uploadCost = 0; // Cloudinary is free tier
+          const backgroundRemovalCost = 0; // Not used in campaign generation
+
           // Step 1: Generate image prompt
           console.log('Generating image prompt...');
           const imagePrompt = await generateImagePrompt(
@@ -459,6 +466,10 @@ async function generateCampaignAds(campaign: any, targetPlatforms: string[]) {
             customInstructions
           );
           console.log('Image prompt:', imagePrompt.substring(0, 100) + '...');
+          // Estimate cost for prompt generation (typically ~500 input, ~200 output tokens)
+          const promptGenCost = (500 / 1000) * MODEL_PRICING['gemini-3-flash'].input +
+                                (200 / 1000) * MODEL_PRICING['gemini-3-flash'].output;
+          copyGenerationCost += promptGenCost;
 
           // Step 2: Generate image at platform dimensions
           console.log('Generating image...');
@@ -467,6 +478,8 @@ async function generateCampaignAds(campaign: any, targetPlatforms: string[]) {
             width: dimensions.width,
             height: dimensions.height,
           });
+          // Cost for image generation
+          imageGenerationCost = MODEL_PRICING['flux-pro-1.1'].perImage;
 
           // Step 3: Upload to Cloudinary
           console.log('Uploading to Cloudinary...');
@@ -477,6 +490,10 @@ async function generateCampaignAds(campaign: any, targetPlatforms: string[]) {
           // Step 4: Generate ad copy
           console.log('Generating ad copy...');
           const copyRaw = await generateAdCopy(adContext, style, customInstructions);
+          // Estimate cost for copy generation (typically ~800 input, ~150 output tokens)
+          const copyGenCost = (800 / 1000) * MODEL_PRICING['gemini-3-flash'].input +
+                              (150 / 1000) * MODEL_PRICING['gemini-3-flash'].output;
+          copyGenerationCost += copyGenCost;
 
           let adCopy: { headline: string; body: string; cta: string; hashtags: string[] };
           try {
@@ -494,7 +511,17 @@ async function generateCampaignAds(campaign: any, targetPlatforms: string[]) {
             };
           }
 
-          // Step 5: Save ad to database
+          // Calculate total cost breakdown
+          const totalCost = imageGenerationCost + copyGenerationCost + uploadCost + backgroundRemovalCost;
+          const costBreakdown = {
+            imageGeneration: imageGenerationCost,
+            copyGeneration: copyGenerationCost,
+            backgroundRemoval: backgroundRemovalCost,
+            upload: uploadCost,
+            total: totalCost,
+          };
+
+          // Step 5: Save ad to database with cost tracking
           const ad = await prisma.ad.create({
             data: {
               style,
@@ -508,6 +535,8 @@ async function generateCampaignAds(campaign: any, targetPlatforms: string[]) {
               productIndex: target.productIndex ?? null,
               brandProfileId: brandProfile.id,
               campaignId: campaign.id,
+              generationCost: totalCost,
+              costBreakdown: JSON.stringify(costBreakdown),
             },
           });
 
@@ -523,7 +552,7 @@ async function generateCampaignAds(campaign: any, targetPlatforms: string[]) {
             },
           });
 
-          console.log(`Ad created: ${ad.id}`);
+          console.log(`Ad created: ${ad.id} with cost: $${totalCost.toFixed(4)}`);
         } catch (adError) {
           console.error(`Failed to generate ad for ${adLabel} on ${platform}:`, adError);
           // Continue with other ads
