@@ -1,6 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../services/database';
 import { CampaignStatus } from '@prisma/client';
+import { generateAdCopy, generateImagePrompt } from '../services/gemini';
+import { generateImage } from '../services/flux';
+import { uploadToCloudinary } from '../services/cloudinary';
 
 const router = Router();
 
@@ -68,8 +71,9 @@ router.get('/', async (_req: Request, res: Response) => {
  */
 router.get('/:id', async (req: Request, res: Response) => {
   try {
+    const campaignId = req.params.id as string;
     const campaign = await prisma.campaign.findUnique({
-      where: { id: req.params.id },
+      where: { id: campaignId },
       include: {
         brandProfile: true,
         ads: {
@@ -79,7 +83,7 @@ router.get('/:id', async (req: Request, res: Response) => {
           orderBy: { createdAt: 'desc' },
         },
       },
-    });
+    }) as any;
 
     if (!campaign) {
       res.status(404).json({ success: false, error: 'Campaign not found' });
@@ -101,7 +105,7 @@ router.get('/:id', async (req: Request, res: Response) => {
           accent: campaign.brandProfile.accentColor,
         },
       },
-      ads: campaign.ads.map((ad) => ({
+      ads: campaign.ads.map((ad: any) => ({
         ...ad,
         hashtags: JSON.parse(ad.hashtags || '[]'),
         copy: {
@@ -129,7 +133,7 @@ router.get('/:id', async (req: Request, res: Response) => {
  */
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { name, description, brandProfileId, targetPlatforms, style, customInstructions } = req.body;
+    const { name, description, brandProfileId, targetPlatforms, style, customInstructions, selectedProducts, includeBrandAd } = req.body;
 
     if (!name || !brandProfileId || !targetPlatforms || targetPlatforms.length === 0) {
       res.status(400).json({
@@ -167,6 +171,8 @@ router.post('/', async (req: Request, res: Response) => {
         targetPlatforms: JSON.stringify(validPlatforms),
         style,
         customInstructions,
+        selectedProducts: selectedProducts ? JSON.stringify(selectedProducts) : null,
+        includeBrandAd: includeBrandAd !== false, // Default to true
         status: CampaignStatus.DRAFT,
       },
       include: {
@@ -184,6 +190,7 @@ router.post('/', async (req: Request, res: Response) => {
       campaign: {
         ...campaign,
         targetPlatforms: validPlatforms,
+        selectedProducts: selectedProducts || [],
       },
     });
   } catch (error) {
@@ -201,10 +208,11 @@ router.post('/', async (req: Request, res: Response) => {
  */
 router.put('/:id', async (req: Request, res: Response) => {
   try {
+    const campaignId = req.params.id as string;
     const { name, description, targetPlatforms, style, customInstructions, status } = req.body;
 
     const existingCampaign = await prisma.campaign.findUnique({
-      where: { id: req.params.id },
+      where: { id: campaignId },
     });
 
     if (!existingCampaign) {
@@ -226,7 +234,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     }
 
     const campaign = await prisma.campaign.update({
-      where: { id: req.params.id },
+      where: { id: campaignId },
       data: updateData,
       include: {
         brandProfile: {
@@ -239,7 +247,7 @@ router.put('/:id', async (req: Request, res: Response) => {
           select: { ads: true },
         },
       },
-    });
+    }) as any;
 
     res.json({
       success: true,
@@ -264,8 +272,9 @@ router.put('/:id', async (req: Request, res: Response) => {
  */
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
+    const campaignId = req.params.id as string;
     const campaign = await prisma.campaign.findUnique({
-      where: { id: req.params.id },
+      where: { id: campaignId },
     });
 
     if (!campaign) {
@@ -275,7 +284,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
     // Delete campaign (cascades to ads due to schema)
     await prisma.campaign.delete({
-      where: { id: req.params.id },
+      where: { id: campaignId },
     });
 
     res.json({ success: true, message: 'Campaign deleted successfully' });
@@ -294,12 +303,13 @@ router.delete('/:id', async (req: Request, res: Response) => {
  */
 router.post('/:id/generate', async (req: Request, res: Response) => {
   try {
+    const campaignId = req.params.id as string;
     const campaign = await prisma.campaign.findUnique({
-      where: { id: req.params.id },
+      where: { id: campaignId },
       include: {
         brandProfile: true,
       },
-    });
+    }) as any;
 
     if (!campaign) {
       res.status(404).json({ success: false, error: 'Campaign not found' });
@@ -329,15 +339,10 @@ router.post('/:id/generate', async (req: Request, res: Response) => {
       })),
     });
 
-    // TODO: Trigger actual ad generation in background
-    // This would call the existing ad generation logic for each platform
-    // For now, mark as active after a delay
-    setTimeout(async () => {
-      await prisma.campaign.update({
-        where: { id: campaign.id },
-        data: { status: CampaignStatus.ACTIVE },
-      });
-    }, 2000);
+    // Generate ads in background
+    generateCampaignAds(campaign, targetPlatforms).catch((error) => {
+      console.error('Background ad generation failed:', error);
+    });
   } catch (error) {
     console.error('Error generating campaign ads:', error);
     res.status(500).json({
@@ -348,11 +353,200 @@ router.post('/:id/generate', async (req: Request, res: Response) => {
 });
 
 /**
+ * Background function to generate ads for all platforms and products
+ */
+async function generateCampaignAds(campaign: any, targetPlatforms: string[]) {
+  const brandProfile = campaign.brandProfile;
+  const style = campaign.style || 'minimal';
+  const customInstructions = campaign.customInstructions || '';
+  const selectedProductIndices: number[] = campaign.selectedProducts
+    ? JSON.parse(campaign.selectedProducts)
+    : [];
+  const includeBrandAd = campaign.includeBrandAd !== false;
+
+  // Parse brand data from JSON strings
+  const brandContext = {
+    companyName: brandProfile.companyName,
+    url: brandProfile.url,
+    personality: JSON.parse(brandProfile.personality || '[]'),
+    colors: {
+      primary: brandProfile.primaryColor,
+      secondary: brandProfile.secondaryColor,
+      accent: brandProfile.accentColor,
+    },
+    targetAudience: brandProfile.targetAudience,
+    voiceTone: brandProfile.voiceTone,
+    visualStyle: brandProfile.visualStyle,
+    industry: brandProfile.industry,
+    uniqueSellingPoints: JSON.parse(brandProfile.uniqueSellingPoints || '[]'),
+    products: JSON.parse(brandProfile.products || '[]'),
+  };
+
+  // Build list of ad targets (brand + selected products)
+  interface AdTarget {
+    type: 'brand' | 'product';
+    name: string;
+    product?: any;
+    productIndex?: number;
+  }
+
+  const adTargets: AdTarget[] = [];
+
+  if (includeBrandAd) {
+    adTargets.push({ type: 'brand', name: brandContext.companyName });
+  }
+
+  for (const idx of selectedProductIndices) {
+    if (idx >= 0 && idx < brandContext.products.length) {
+      adTargets.push({
+        type: 'product',
+        name: brandContext.products[idx].name,
+        product: brandContext.products[idx],
+        productIndex: idx,
+      });
+    }
+  }
+
+  console.log(`\n=== Starting Campaign Ad Generation ===`);
+  console.log(`Campaign: ${campaign.name}`);
+  console.log(`Brand: ${brandProfile.companyName}`);
+  console.log(`Platforms: ${targetPlatforms.join(', ')}`);
+  console.log(`Style: ${style}`);
+  console.log(`Ad Targets: ${adTargets.map(t => t.name).join(', ')}`);
+  console.log(`Total ads to generate: ${adTargets.length * targetPlatforms.length}`);
+
+  try {
+    // Generate ads for each target (brand/product) on each platform
+    for (const target of adTargets) {
+      for (const platform of targetPlatforms) {
+        const dimensions = PLATFORM_DIMENSIONS[platform];
+        if (!dimensions) {
+          console.log(`Skipping unknown platform: ${platform}`);
+          continue;
+        }
+
+        const adLabel = target.type === 'brand'
+          ? `${brandContext.companyName} (Brand)`
+          : `${target.name} (Product)`;
+
+        console.log(`\n--- Generating ad: ${adLabel} for ${dimensions.name} (${dimensions.width}x${dimensions.height}) ---`);
+
+        try {
+          // Build context for this specific ad
+          const adContext = target.type === 'product' && target.product ? {
+            ...brandContext,
+            targetAudience: target.product.targetAudience || brandContext.targetAudience,
+            uniqueSellingPoints: target.product.keyBenefits || brandContext.uniqueSellingPoints,
+            productName: target.product.name,
+            productDescription: target.product.description,
+            promotionAngle: target.product.promotionAngle,
+          } : brandContext;
+
+          // Step 1: Generate image prompt
+          console.log('Generating image prompt...');
+          const imagePrompt = await generateImagePrompt(
+            adContext,
+            style,
+            false, // no product image
+            customInstructions
+          );
+          console.log('Image prompt:', imagePrompt.substring(0, 100) + '...');
+
+          // Step 2: Generate image at platform dimensions
+          console.log('Generating image...');
+          const imageBuffer = await generateImage({
+            prompt: imagePrompt,
+            width: dimensions.width,
+            height: dimensions.height,
+          });
+
+          // Step 3: Upload to Cloudinary
+          console.log('Uploading to Cloudinary...');
+          const imageName = `campaign-${campaign.id}-${target.type}-${platform}-${Date.now()}`;
+          const { url: imageUrl } = await uploadToCloudinary(imageBuffer, imageName);
+          console.log('Image uploaded:', imageUrl);
+
+          // Step 4: Generate ad copy
+          console.log('Generating ad copy...');
+          const copyRaw = await generateAdCopy(adContext, style, customInstructions);
+
+          let adCopy: { headline: string; body: string; cta: string; hashtags: string[] };
+          try {
+            const jsonMatch = copyRaw.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, copyRaw];
+            adCopy = JSON.parse(jsonMatch[1] || copyRaw);
+          } catch {
+            const name = target.type === 'product' ? target.name : brandContext.companyName;
+            adCopy = {
+              headline: `Discover ${name}`,
+              body: target.type === 'product' && target.product
+                ? target.product.promotionAngle || target.product.description
+                : (brandContext.uniqueSellingPoints[0] || 'Experience the difference.'),
+              cta: 'Learn More',
+              hashtags: ['#' + brandContext.companyName.replace(/\s/g, ''), '#' + brandContext.industry.replace(/\s/g, '')],
+            };
+          }
+
+          // Step 5: Save ad to database
+          const ad = await prisma.ad.create({
+            data: {
+              style,
+              imageUrl,
+              headline: adCopy.headline,
+              body: adCopy.body,
+              cta: adCopy.cta,
+              hashtags: JSON.stringify(adCopy.hashtags),
+              imagePrompt,
+              productName: target.type === 'product' ? target.name : null,
+              productIndex: target.productIndex ?? null,
+              brandProfileId: brandProfile.id,
+              campaignId: campaign.id,
+            },
+          });
+
+          // Step 6: Create export record for this platform
+          await prisma.adExport.create({
+            data: {
+              platform,
+              width: dimensions.width,
+              height: dimensions.height,
+              format: 'png',
+              url: imageUrl,
+              adId: ad.id,
+            },
+          });
+
+          console.log(`Ad created: ${ad.id}`);
+        } catch (adError) {
+          console.error(`Failed to generate ad for ${adLabel} on ${platform}:`, adError);
+          // Continue with other ads
+        }
+      }
+    }
+
+    // Update campaign status to active
+    await prisma.campaign.update({
+      where: { id: campaign.id },
+      data: { status: CampaignStatus.ACTIVE },
+    });
+
+    console.log(`\n=== Campaign Ad Generation Complete ===\n`);
+  } catch (error) {
+    console.error('Campaign generation error:', error);
+    // Mark campaign as failed/draft
+    await prisma.campaign.update({
+      where: { id: campaign.id },
+      data: { status: CampaignStatus.DRAFT },
+    });
+  }
+}
+
+/**
  * POST /api/campaigns/:id/ads
  * Add an existing ad to a campaign
  */
 router.post('/:id/ads', async (req: Request, res: Response) => {
   try {
+    const campaignId = req.params.id as string;
     const { adId } = req.body;
 
     if (!adId) {
@@ -361,7 +555,7 @@ router.post('/:id/ads', async (req: Request, res: Response) => {
     }
 
     const campaign = await prisma.campaign.findUnique({
-      where: { id: req.params.id },
+      where: { id: campaignId },
     });
 
     if (!campaign) {
@@ -390,10 +584,12 @@ router.post('/:id/ads', async (req: Request, res: Response) => {
  */
 router.delete('/:id/ads/:adId', async (req: Request, res: Response) => {
   try {
+    const campaignId = req.params.id as string;
+    const adId = req.params.adId as string;
     const ad = await prisma.ad.findFirst({
       where: {
-        id: req.params.adId,
-        campaignId: req.params.id,
+        id: adId,
+        campaignId: campaignId,
       },
     });
 

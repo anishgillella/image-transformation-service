@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import imageRoutes from './routes/images';
 import adforgeRoutes from './routes/adforge';
-// import campaignRoutes from './routes/campaigns'; // TODO: Enable when Prisma is fully configured
+import campaignRoutes from './routes/campaigns';
 import { costTracker } from './services/costTracker';
 
 // Load environment variables from the shared .env file
@@ -20,7 +20,7 @@ app.use(express.json({ limit: '50mb' })); // Increased for base64 images
 // Routes
 app.use('/api/images', imageRoutes);
 app.use('/api/adforge', adforgeRoutes);
-// app.use('/api/campaigns', campaignRoutes); // TODO: Enable when Prisma is fully configured
+app.use('/api/campaigns', campaignRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

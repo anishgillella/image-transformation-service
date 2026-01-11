@@ -189,6 +189,8 @@ export interface CampaignCreateInput {
   targetPlatforms: ExportPlatform[];
   style?: AdStyle;
   customInstructions?: string;
+  selectedProducts?: number[];
+  includeBrandAd?: boolean;
 }
 
 export interface CampaignUpdateInput {

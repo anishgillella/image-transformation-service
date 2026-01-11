@@ -15,6 +15,17 @@ interface FluxGenerateOptions {
   guidance?: number;
 }
 
+/**
+ * Round dimensions to be divisible by 32 (Flux API requirement)
+ * Also ensures minimum 256 and maximum 1440
+ */
+function normalizeFluxDimension(dim: number): number {
+  // Clamp to valid range
+  const clamped = Math.max(256, Math.min(1440, dim));
+  // Round to nearest 32
+  return Math.round(clamped / 32) * 32;
+}
+
 interface FluxFillOptions {
   image: Buffer;
   mask: Buffer;
@@ -27,13 +38,19 @@ interface FluxFillOptions {
  * Generate an image using Flux.2 Pro
  */
 export async function generateImage(options: FluxGenerateOptions): Promise<Buffer> {
+  // Normalize dimensions to Flux API requirements
+  const width = normalizeFluxDimension(options.width ?? 1024);
+  const height = normalizeFluxDimension(options.height ?? 1024);
+
+  console.log(`Flux: Generating image at ${width}x${height} (requested: ${options.width}x${options.height})`);
+
   // Step 1: Submit generation request
   const submitResponse = await axios.post(
     `${BFL_API_URL}/flux-pro-1.1`,
     {
       prompt: options.prompt,
-      width: options.width ?? 1024,
-      height: options.height ?? 1024,
+      width,
+      height,
       steps: options.steps ?? 25,
       guidance: options.guidance ?? 3,
       safety_tolerance: 2,

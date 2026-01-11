@@ -5,6 +5,7 @@ import { generateImage, fillImage, createMaskFromTransparent } from '../services
 import { uploadToCloudinary, deleteFromCloudinary } from '../services/cloudinary';
 import { BrandProfile, GeneratedAd, AdStyle, AdCopy, Product, CopyVariations, BrandAsset, BrandAssetLibrary, ExportPlatform, PLATFORM_DIMENSIONS } from '../types';
 import { upload } from '../middleware/upload';
+import { prisma } from '../services/database';
 import sharp from 'sharp';
 import axios from 'axios';
 
@@ -76,8 +77,26 @@ router.post('/analyze', async (req: Request, res: Response) => {
       analyzedAt: new Date(),
     };
 
-    // Generate unique profile ID
-    const profileId = `profile-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    // Save to Prisma database for campaign integration
+    const dbProfile = await prisma.brandProfile.create({
+      data: {
+        companyName: brandProfile.companyName,
+        url: brandProfile.url,
+        personality: JSON.stringify(brandProfile.personality),
+        primaryColor: brandProfile.colors.primary,
+        secondaryColor: brandProfile.colors.secondary,
+        accentColor: brandProfile.colors.accent,
+        targetAudience: brandProfile.targetAudience,
+        voiceTone: brandProfile.voiceTone,
+        visualStyle: brandProfile.visualStyle,
+        industry: brandProfile.industry,
+        uniqueSellingPoints: JSON.stringify(brandProfile.uniqueSellingPoints),
+        products: JSON.stringify(brandProfile.products),
+      },
+    });
+
+    // Use database ID as profile ID for consistency
+    const profileId = dbProfile.id;
     brandProfiles.set(profileId, brandProfile);
 
     console.log(`Brand analysis complete: ${brandProfile.companyName} with ${brandProfile.products.length} products`);

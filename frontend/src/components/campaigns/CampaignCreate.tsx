@@ -9,11 +9,12 @@ import {
   Globe,
   Palette,
   MessageSquare,
+  Package,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { createCampaign, getCampaignPlatforms } from '../../services/campaign-api';
 import { analyzeCompany } from '../../services/adforge-api';
-import type { PlatformInfo, AdStyle, BrandProfile, ExportPlatform } from '../../types';
+import type { PlatformInfo, AdStyle, BrandProfile, ExportPlatform, Product } from '../../types';
 
 const STYLES: { id: AdStyle; name: string; description: string; color: string }[] = [
   { id: 'minimal', name: 'Minimal', description: 'Clean and simple', color: 'bg-gray-700' },
@@ -22,7 +23,7 @@ const STYLES: { id: AdStyle; name: string; description: string; color: string }[
   { id: 'lifestyle', name: 'Lifestyle', description: 'Real-world context', color: 'bg-green-600' },
 ];
 
-type Step = 'brand' | 'details' | 'platforms' | 'style';
+type Step = 'brand' | 'products' | 'details' | 'platforms' | 'style';
 
 export function CampaignCreate() {
   const navigate = useNavigate();
@@ -39,6 +40,10 @@ export function CampaignCreate() {
   // Campaign details
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+
+  // Product selection
+  const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
+  const [includeBrandAd, setIncludeBrandAd] = useState(true);
 
   // Platform selection
   const [platforms, setPlatforms] = useState<PlatformInfo[]>([]);
@@ -117,6 +122,11 @@ export function CampaignCreate() {
       return;
     }
 
+    if (!includeBrandAd && selectedProducts.size === 0) {
+      toast.error('Please select at least one product or include a brand ad');
+      return;
+    }
+
     setIsCreating(true);
     try {
       const result = await createCampaign({
@@ -126,6 +136,8 @@ export function CampaignCreate() {
         targetPlatforms: Array.from(selectedPlatforms),
         style: selectedStyle || undefined,
         customInstructions: customInstructions.trim() || undefined,
+        selectedProducts: Array.from(selectedProducts),
+        includeBrandAd,
       });
 
       if (result.success && result.campaign) {
@@ -143,6 +155,7 @@ export function CampaignCreate() {
 
   const canProceed = {
     brand: !!profileId,
+    products: includeBrandAd || selectedProducts.size > 0,
     details: name.trim().length > 0,
     platforms: selectedPlatforms.size > 0,
     style: true, // Style is optional
@@ -150,10 +163,33 @@ export function CampaignCreate() {
 
   const steps: { id: Step; label: string; icon: typeof Globe }[] = [
     { id: 'brand', label: 'Brand', icon: Globe },
+    { id: 'products', label: 'Products', icon: Package },
     { id: 'details', label: 'Details', icon: MessageSquare },
     { id: 'platforms', label: 'Platforms', icon: Target },
     { id: 'style', label: 'Style', icon: Palette },
   ];
+
+  const toggleProduct = (index: number) => {
+    setSelectedProducts((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
+
+  const selectAllProducts = () => {
+    if (brandProfile) {
+      setSelectedProducts(new Set(brandProfile.products.map((_, i) => i)));
+    }
+  };
+
+  const clearProducts = () => {
+    setSelectedProducts(new Set());
+  };
 
   return (
     <div className="min-h-full bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-8">
@@ -310,7 +346,124 @@ export function CampaignCreate() {
             </div>
           )}
 
-          {/* Step 2: Details */}
+          {/* Step 2: Products */}
+          {currentStep === 'products' && brandProfile && (
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">Select Products</h2>
+              <p className="text-gray-500 mb-4">
+                Choose which products to generate ads for. You can also include a general brand ad.
+              </p>
+
+              {/* Brand-level ad option */}
+              <motion.button
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                onClick={() => setIncludeBrandAd(!includeBrandAd)}
+                className={`w-full p-4 rounded-xl border-2 text-left transition-all mb-4 ${
+                  includeBrandAd
+                    ? 'border-indigo-500 bg-indigo-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-12 h-12 rounded-xl flex items-center justify-center"
+                      style={{ backgroundColor: brandProfile.colors.primary }}
+                    >
+                      <Globe size={24} className="text-white" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900">{brandProfile.companyName} - Brand Ad</p>
+                      <p className="text-sm text-gray-500">General brand awareness ad</p>
+                    </div>
+                  </div>
+                  {includeBrandAd && (
+                    <div className="w-6 h-6 bg-indigo-500 rounded-full flex items-center justify-center">
+                      <Check size={14} className="text-white" />
+                    </div>
+                  )}
+                </div>
+              </motion.button>
+
+              {/* Products header */}
+              {brandProfile.products.length > 0 && (
+                <>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-medium text-gray-700">
+                      Products ({brandProfile.products.length})
+                    </h3>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={selectAllProducts}
+                        className="text-sm text-indigo-600 hover:underline"
+                      >
+                        Select All
+                      </button>
+                      <span className="text-gray-300">|</span>
+                      <button
+                        onClick={clearProducts}
+                        className="text-sm text-gray-500 hover:underline"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Product list */}
+                  <div className="space-y-2 max-h-80 overflow-y-auto">
+                    {brandProfile.products.map((product, index) => {
+                      const isSelected = selectedProducts.has(index);
+                      return (
+                        <motion.button
+                          key={index}
+                          whileHover={{ scale: 1.01 }}
+                          whileTap={{ scale: 0.99 }}
+                          onClick={() => toggleProduct(index)}
+                          className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
+                            isSelected
+                              ? 'border-indigo-500 bg-indigo-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-gray-900 truncate">{product.name}</p>
+                              <p className="text-sm text-gray-500 truncate">{product.description}</p>
+                              {product.keyBenefits && product.keyBenefits.length > 0 && (
+                                <p className="text-xs text-gray-400 mt-1 truncate">
+                                  {product.keyBenefits.slice(0, 2).join(' • ')}
+                                </p>
+                              )}
+                            </div>
+                            {isSelected && (
+                              <div className="w-6 h-6 bg-indigo-500 rounded-full flex items-center justify-center ml-3 flex-shrink-0">
+                                <Check size={14} className="text-white" />
+                              </div>
+                            )}
+                          </div>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              {brandProfile.products.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  <Package size={48} className="mx-auto mb-3 text-gray-300" />
+                  <p>No products detected from the website.</p>
+                  <p className="text-sm">A brand-level ad will be generated.</p>
+                </div>
+              )}
+
+              <p className="text-sm text-gray-500 mt-4">
+                {includeBrandAd ? 1 : 0} brand ad + {selectedProducts.size} product ad{selectedProducts.size !== 1 ? 's' : ''} selected
+              </p>
+            </div>
+          )}
+
+          {/* Step 3: Details */}
           {currentStep === 'details' && (
             <div>
               <h2 className="text-xl font-bold text-gray-900 mb-2">Campaign Details</h2>

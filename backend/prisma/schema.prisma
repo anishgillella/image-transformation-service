@@ -52,6 +52,8 @@ model Campaign {
   targetPlatforms String         // JSON array of platform IDs
   style           String?        // Default style for campaign ads
   customInstructions String?
+  selectedProducts String?       // JSON array of product indices
+  includeBrandAd  Boolean        @default(true)
 
   // Relations
   brandProfileId  String
