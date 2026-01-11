@@ -12,9 +12,11 @@ import {
   MoreVertical,
   Target,
   Sparkles,
+  DollarSign,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getCampaigns, deleteCampaign } from '../../services/campaign-api';
+import { getAllCampaignsWithCosts } from '../../services/cost-api';
 import type { Campaign, CampaignStatus } from '../../types';
 
 const STATUS_STYLES: Record<CampaignStatus, { bg: string; text: string; label: string }> = {
@@ -28,6 +30,7 @@ const STATUS_STYLES: Record<CampaignStatus, { bg: string; text: string; label: s
 export function CampaignList() {
   const navigate = useNavigate();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [campaignCosts, setCampaignCosts] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
 
@@ -38,11 +41,21 @@ export function CampaignList() {
   const loadCampaigns = async () => {
     try {
       setIsLoading(true);
-      const result = await getCampaigns();
-      if (result.success) {
-        setCampaigns(result.campaigns);
+      const [campaignsResult, costsResult] = await Promise.all([
+        getCampaigns(),
+        getAllCampaignsWithCosts(),
+      ]);
+      if (campaignsResult.success) {
+        setCampaigns(campaignsResult.campaigns);
       } else {
-        toast.error(result.error || 'Failed to load campaigns');
+        toast.error(campaignsResult.error || 'Failed to load campaigns');
+      }
+      if (costsResult.success) {
+        const costsMap: Record<string, number> = {};
+        costsResult.campaigns.forEach((c) => {
+          costsMap[c.id] = c.total;
+        });
+        setCampaignCosts(costsMap);
       }
     } catch (error) {
       toast.error('Failed to load campaigns');
@@ -249,6 +262,12 @@ export function CampaignList() {
                           <Image size={14} />
                           <span>{campaign.adCount || 0} ads</span>
                         </div>
+                        {campaignCosts[campaign.id] !== undefined && campaignCosts[campaign.id] > 0 && (
+                          <div className="flex items-center gap-1.5 text-emerald-600">
+                            <DollarSign size={14} />
+                            <span className="font-mono">${campaignCosts[campaign.id].toFixed(2)}</span>
+                          </div>
+                        )}
                       </div>
 
                       <div className="flex items-center gap-1.5 mt-3 text-xs text-gray-400">

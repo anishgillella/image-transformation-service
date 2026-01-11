@@ -15,9 +15,11 @@ import {
   Grid3X3,
   List,
   Package,
+  DollarSign,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getCampaign, generateCampaignAds, deleteCampaign } from '../../services/campaign-api';
+import { getCampaignCosts } from '../../services/cost-api';
 import type { Campaign, CampaignStatus, GeneratedAd } from '../../types';
 
 const STATUS_STYLES: Record<CampaignStatus, { bg: string; text: string; label: string }> = {
@@ -43,6 +45,7 @@ export function CampaignView() {
   const navigate = useNavigate();
 
   const [campaign, setCampaign] = useState<Campaign | null>(null);
+  const [campaignCost, setCampaignCost] = useState<{ total: number; avgPerAd: number } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -59,12 +62,18 @@ export function CampaignView() {
 
     try {
       setIsLoading(true);
-      const result = await getCampaign(id);
-      if (result.success && result.campaign) {
-        setCampaign(result.campaign);
+      const [campaignResult, costsResult] = await Promise.all([
+        getCampaign(id),
+        getCampaignCosts(id),
+      ]);
+      if (campaignResult.success && campaignResult.campaign) {
+        setCampaign(campaignResult.campaign);
       } else {
-        toast.error(result.error || 'Failed to load campaign');
+        toast.error(campaignResult.error || 'Failed to load campaign');
         navigate('/campaigns');
+      }
+      if (costsResult.success) {
+        setCampaignCost({ total: costsResult.total, avgPerAd: costsResult.avgPerAd });
       }
     } catch (error) {
       toast.error('Failed to load campaign');
@@ -219,7 +228,7 @@ export function CampaignView() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="grid grid-cols-3 gap-4 mb-8"
+          className="grid grid-cols-4 gap-4 mb-8"
         >
           <div className="bg-white rounded-2xl border-2 border-gray-200 p-5">
             <div className="flex items-center gap-3 mb-2">
@@ -253,6 +262,23 @@ export function CampaignView() {
               <span className="text-gray-500">Ads Generated</span>
             </div>
             <span className="text-2xl font-bold text-gray-900">{ads.length}</span>
+          </div>
+
+          <div className="bg-white rounded-2xl border-2 border-gray-200 p-5">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+                <DollarSign size={20} className="text-emerald-600" />
+              </div>
+              <span className="text-gray-500">Total Cost</span>
+            </div>
+            <span className="text-2xl font-bold text-gray-900 font-mono">
+              ${campaignCost?.total?.toFixed(4) || '0.0000'}
+            </span>
+            {campaignCost && campaignCost.avgPerAd > 0 && (
+              <div className="text-xs text-gray-500 mt-1">
+                ~${campaignCost.avgPerAd.toFixed(4)}/ad
+              </div>
+            )}
           </div>
 
           <div className="bg-white rounded-2xl border-2 border-gray-200 p-5">
