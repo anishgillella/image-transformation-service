@@ -113,12 +113,26 @@ function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isWarming, checkHealth } = useBackendWarmup();
+  const [showLoader, setShowLoader] = useState(false);
   const [initialCheckDone, setInitialCheckDone] = useState(false);
 
   // Check backend health on initial load
   useEffect(() => {
-    checkHealth().finally(() => setInitialCheckDone(true));
-  }, [checkHealth]);
+    // Only show loader if backend takes more than 2 seconds to respond
+    const loaderTimeout = setTimeout(() => {
+      if (!initialCheckDone) {
+        setShowLoader(true);
+      }
+    }, 2000);
+
+    checkHealth().finally(() => {
+      clearTimeout(loaderTimeout);
+      setShowLoader(false);
+      setInitialCheckDone(true);
+    });
+
+    return () => clearTimeout(loaderTimeout);
+  }, [checkHealth, initialCheckDone]);
 
   // Determine active tab from URL
   const getActiveTab = (): 'adforge' | 'transformer' | 'campaigns' | 'usage' => {
@@ -136,14 +150,9 @@ function AppLayout() {
     else navigate('/transformer');
   };
 
-  // Show warmup loader while backend is waking up
-  if (isWarming && !initialCheckDone) {
+  // Show warmup loader only if backend is slow (takes > 2 seconds)
+  if (showLoader && isWarming) {
     return <WarmupLoader message="Starting up Victoria..." />;
-  }
-
-  // Show warmup loader if backend needs to wake up (after initial check)
-  if (isWarming) {
-    return <WarmupLoader message="Reconnecting to server..." />;
   }
 
   return (
