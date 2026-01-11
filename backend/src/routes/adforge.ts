@@ -23,7 +23,7 @@ const brandAssetLibraries: Map<string, BrandAssetLibrary> = new Map();
  */
 router.post('/analyze', async (req: Request, res: Response) => {
   try {
-    const { url } = req.body;
+    const { url, urlType } = req.body;
 
     if (!url) {
       res.status(400).json({ success: false, error: 'URL is required' });
@@ -40,7 +40,9 @@ router.post('/analyze', async (req: Request, res: Response) => {
       return;
     }
 
-    console.log(`Analyzing brand: ${validUrl}`);
+    // Use user-provided URL type or default to 'brand'
+    const pageType: 'brand' | 'product' = urlType === 'product' ? 'product' : 'brand';
+    console.log(`Analyzing ${pageType}: ${validUrl}`);
 
     // Step 1: Extract website content using Parallel AI
     console.log('Extracting website content...');
@@ -48,7 +50,7 @@ router.post('/analyze', async (req: Request, res: Response) => {
 
     // Step 2: Analyze brand with Gemini LLM
     console.log('Analyzing brand with AI...');
-    const analysisRaw = await analyzeBrand(webContent.content, validUrl);
+    const analysisRaw = await analyzeBrand(webContent.content, validUrl, pageType);
 
     // Parse JSON from LLM response
     let brandData: any;

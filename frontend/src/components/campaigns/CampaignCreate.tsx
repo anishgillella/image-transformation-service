@@ -10,6 +10,8 @@ import {
   Palette,
   MessageSquare,
   Package,
+  ShoppingBag,
+  Building2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { createCampaign, getCampaignPlatforms } from '../../services/campaign-api';
@@ -33,6 +35,7 @@ export function CampaignCreate() {
 
   // Brand analysis state
   const [brandUrl, setBrandUrl] = useState('');
+  const [urlType, setUrlType] = useState<'brand' | 'product'>('brand');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [profileId, setProfileId] = useState<string | null>(null);
   const [brandProfile, setBrandProfile] = useState<BrandProfile | null>(null);
@@ -79,13 +82,21 @@ export function CampaignCreate() {
 
     setIsAnalyzing(true);
     try {
-      const result = await analyzeCompany(brandUrl);
+      const result = await analyzeCompany(brandUrl, urlType);
       if (result.success && result.profileId && result.brandProfile) {
         setProfileId(result.profileId);
         setBrandProfile(result.brandProfile);
         setName(`${result.brandProfile.companyName} Campaign`);
-        toast.success(`Analyzed ${result.brandProfile.companyName}`);
-        setCurrentStep('details');
+        toast.success(`Analyzed ${result.brandProfile.companyName} - Found ${result.brandProfile.products.length} product(s)`);
+
+        // If it's a product URL, auto-select the first product and skip brand ad
+        if (urlType === 'product' && result.brandProfile.products.length > 0) {
+          setSelectedProducts(new Set([0]));
+          setIncludeBrandAd(false);
+        }
+
+        // Go to products step to let user select/confirm products
+        setCurrentStep('products');
       } else {
         toast.error(result.error || 'Failed to analyze brand');
       }
@@ -263,23 +274,88 @@ export function CampaignCreate() {
             <div>
               <h2 className="text-xl font-bold text-gray-900 mb-2">Analyze Your Brand</h2>
               <p className="text-gray-500 mb-6">
-                Enter your website URL and we'll extract your brand colors, voice, and style.
+                Enter your website URL and we'll extract your brand colors, voice, and products.
               </p>
 
               {!brandProfile ? (
                 <div className="space-y-4">
+                  {/* URL Type Selection */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Website URL
+                      What are you analyzing?
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <motion.button
+                        type="button"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setUrlType('brand')}
+                        className={`p-4 rounded-xl border-2 text-left transition-all ${
+                          urlType === 'brand'
+                            ? 'border-indigo-500 bg-indigo-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                            urlType === 'brand' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-500'
+                          }`}>
+                            <Building2 size={20} />
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">Company / Brand</p>
+                            <p className="text-xs text-gray-500">Homepage or about page</p>
+                          </div>
+                        </div>
+                      </motion.button>
+
+                      <motion.button
+                        type="button"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setUrlType('product')}
+                        className={`p-4 rounded-xl border-2 text-left transition-all ${
+                          urlType === 'product'
+                            ? 'border-indigo-500 bg-indigo-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                            urlType === 'product' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-500'
+                          }`}>
+                            <ShoppingBag size={20} />
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">Specific Product</p>
+                            <p className="text-xs text-gray-500">Product detail page</p>
+                          </div>
+                        </div>
+                      </motion.button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {urlType === 'product' ? 'Product URL' : 'Website URL'}
                     </label>
                     <input
                       type="url"
                       value={brandUrl}
                       onChange={(e) => setBrandUrl(e.target.value)}
-                      placeholder="https://your-company.com"
+                      placeholder={urlType === 'product'
+                        ? "https://nike.com/t/air-max-90/ABC123"
+                        : "https://your-company.com"
+                      }
                       className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-indigo-500 focus:ring-0 transition-colors"
                       onKeyDown={(e) => e.key === 'Enter' && handleAnalyzeBrand()}
                     />
+                    <p className="text-xs text-gray-400 mt-1">
+                      {urlType === 'product'
+                        ? "Paste the URL of a specific product page"
+                        : "Paste your company homepage or main website"
+                      }
+                    </p>
                   </div>
                   <motion.button
                     whileHover={{ scale: 1.01 }}
@@ -291,12 +367,12 @@ export function CampaignCreate() {
                     {isAnalyzing ? (
                       <>
                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Analyzing...
+                        Analyzing {urlType === 'product' ? 'Product' : 'Brand'}...
                       </>
                     ) : (
                       <>
                         <Sparkles size={18} />
-                        Analyze Brand
+                        Analyze {urlType === 'product' ? 'Product' : 'Brand'}
                       </>
                     )}
                   </motion.button>
@@ -336,6 +412,9 @@ export function CampaignCreate() {
                       setBrandProfile(null);
                       setProfileId(null);
                       setBrandUrl('');
+                      setUrlType('brand');
+                      setSelectedProducts(new Set());
+                      setIncludeBrandAd(true);
                     }}
                     className="text-sm text-indigo-600 hover:underline"
                   >

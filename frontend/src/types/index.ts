@@ -230,5 +230,5 @@ export interface CostSummary {
   totalCost: number;
   byModel: Record<string, ModelCostSummary>;
   entries: CostEntry[];
-  sessionStart: string;
+  periodStart: string;
 }

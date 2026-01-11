@@ -1,9 +1,5 @@
 import axios from 'axios';
-import dotenv from 'dotenv';
-import path from 'path';
 import { costTracker } from './costTracker';
-
-dotenv.config({ path: path.resolve('/Users/anishgillella/Desktop/Stuff/Projects/uplane/.env') });
 
 const PARALLEL_API_URL = 'https://api.parallel.ai/v1';
 
@@ -81,8 +77,8 @@ export async function extractBrandContent(url: string): Promise<WebContentRespon
   // Poll for task completion
   const result = await pollTaskCompletion(taskId);
 
-  // Track cost
-  costTracker.trackApiRequest('parallel-ai', 'web-content-extraction', 1, { url });
+  // Track cost (no adId, just metadata)
+  costTracker.trackApiRequest('parallel-ai', 'web-content-extraction', 1, undefined, { url });
 
   // Format the output as content string for downstream processing
   const output = result.output;

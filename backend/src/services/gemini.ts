@@ -1,9 +1,5 @@
 import axios from 'axios';
-import dotenv from 'dotenv';
-import path from 'path';
 import { costTracker } from './costTracker';
-
-dotenv.config({ path: path.resolve('/Users/anishgillella/Desktop/Stuff/Projects/uplane/.env') });
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
@@ -103,10 +99,14 @@ function detectUrlType(url: string): 'product' | 'brand' {
 
 /**
  * Analyze brand from website content and extract all products/services
+ * @param websiteContent - The extracted content from the website
+ * @param url - The URL being analyzed
+ * @param userUrlType - Optional user-specified URL type (overrides auto-detection)
  */
-export async function analyzeBrand(websiteContent: string, url: string): Promise<string> {
-  const urlType = detectUrlType(url);
-  console.log(`URL type detected: ${urlType} for ${url}`);
+export async function analyzeBrand(websiteContent: string, url: string, userUrlType?: 'brand' | 'product'): Promise<string> {
+  // Use user-specified type if provided, otherwise auto-detect
+  const urlType = userUrlType || detectUrlType(url);
+  console.log(`URL type: ${urlType} for ${url}${userUrlType ? ' (user specified)' : ' (auto-detected)'}`);
 
   const basePrompt = `You are an elite brand strategist with 20+ years of experience at top agencies like Wieden+Kennedy and Droga5. Your expertise is extracting the essence of a brand and understanding their product portfolio for marketing purposes.`;
 

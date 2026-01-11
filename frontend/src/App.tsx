@@ -9,6 +9,7 @@ import { ProcessingState } from './components/ProcessingState';
 import { ImageResult } from './components/ImageResult';
 import { AdForge } from './components/adforge/AdForge';
 import { CampaignList, CampaignCreate, CampaignView } from './components/campaigns';
+import { UsageDashboard } from './components/UsageDashboard';
 import { CostTracker } from './components/CostTracker';
 import { uploadImage } from './services/api';
 import type { ProcessedImage, AppState } from './types';
@@ -111,16 +112,18 @@ function AppLayout() {
   const location = useLocation();
 
   // Determine active tab from URL
-  const getActiveTab = (): 'adforge' | 'transformer' | 'campaigns' => {
+  const getActiveTab = (): 'adforge' | 'transformer' | 'campaigns' | 'usage' => {
     if (location.pathname === '/transformer') return 'transformer';
     if (location.pathname.startsWith('/campaigns')) return 'campaigns';
+    if (location.pathname === '/usage') return 'usage';
     return 'adforge';
   };
   const activeTab = getActiveTab();
 
-  const handleTabChange = (tab: 'adforge' | 'transformer' | 'campaigns') => {
+  const handleTabChange = (tab: 'adforge' | 'transformer' | 'campaigns' | 'usage') => {
     if (tab === 'adforge') navigate('/');
     else if (tab === 'campaigns') navigate('/campaigns');
+    else if (tab === 'usage') navigate('/usage');
     else navigate('/transformer');
   };
 
@@ -215,6 +218,21 @@ function AppLayout() {
                   className="flex-1"
                 >
                   <CampaignView />
+                </motion.div>
+              }
+            />
+            {/* Usage Dashboard */}
+            <Route
+              path="/usage"
+              element={
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex-1"
+                >
+                  <UsageDashboard />
                 </motion.div>
               }
             />
