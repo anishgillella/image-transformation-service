@@ -397,6 +397,33 @@ class CostTracker {
     });
     return result._sum.cost || 0;
   }
+
+  /**
+   * Get all campaigns with their costs
+   */
+  async getAllCampaignsWithCosts(): Promise<{ id: string; name: string; total: number; adCount: number; createdAt: Date }[]> {
+    const campaigns = await prisma.campaign.findMany({
+      include: {
+        ads: {
+          select: {
+            generationCost: true,
+          },
+        },
+        _count: {
+          select: { ads: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return campaigns.map((campaign: any) => ({
+      id: campaign.id,
+      name: campaign.name,
+      total: campaign.ads.reduce((sum: number, ad: any) => sum + (ad.generationCost || 0), 0),
+      adCount: campaign._count.ads,
+      createdAt: campaign.createdAt,
+    }));
+  }
 }
 
 // Export singleton instance

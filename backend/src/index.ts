@@ -74,6 +74,16 @@ app.get('/api/costs/ad/:id', async (req, res) => {
   }
 });
 
+app.get('/api/costs/campaigns', async (req, res) => {
+  try {
+    const campaignsWithCosts = await costTracker.getAllCampaignsWithCosts();
+    res.json({ success: true, campaigns: campaignsWithCosts });
+  } catch (error) {
+    console.error('Error getting campaigns with costs:', error);
+    res.status(500).json({ success: false, error: 'Failed to get campaigns with costs' });
+  }
+});
+
 // Error handling middleware
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error('Unhandled error:', err);
