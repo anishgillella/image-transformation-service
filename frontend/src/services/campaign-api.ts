@@ -75,6 +75,29 @@ export async function generateCampaignAds(
 }
 
 /**
+ * Generate more ads with custom settings
+ */
+export interface GenerateMoreInput {
+  targetPlatforms?: string[];
+  style?: string;
+  selectedProducts?: number[];
+  includeBrandAd?: boolean;
+  customInstructions?: string;
+}
+
+export async function generateMoreAds(
+  id: string,
+  options: GenerateMoreInput
+): Promise<{ success: boolean; message?: string; campaignId?: string; platforms?: PlatformInfo[]; error?: string }> {
+  const response = await fetch(`${API_URL}/campaigns/${id}/generate-more`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(options),
+  });
+  return response.json();
+}
+
+/**
  * Add an existing ad to a campaign
  */
 export async function addAdToCampaign(

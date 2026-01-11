@@ -541,6 +541,71 @@ async function generateCampaignAds(campaign: any, targetPlatforms: string[]) {
 }
 
 /**
+ * POST /api/campaigns/:id/generate-more
+ * Generate additional ads with custom settings (platforms, style, products)
+ */
+router.post('/:id/generate-more', async (req: Request, res: Response) => {
+  try {
+    const campaignId = req.params.id as string;
+    const { targetPlatforms, style, selectedProducts, includeBrandAd, customInstructions } = req.body;
+
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId },
+      include: {
+        brandProfile: true,
+      },
+    }) as any;
+
+    if (!campaign) {
+      res.status(404).json({ success: false, error: 'Campaign not found' });
+      return;
+    }
+
+    // Use provided settings or fall back to campaign defaults
+    const platforms = targetPlatforms && targetPlatforms.length > 0
+      ? targetPlatforms.filter((p: string) => PLATFORM_DIMENSIONS[p])
+      : JSON.parse(campaign.targetPlatforms || '[]');
+
+    if (platforms.length === 0) {
+      res.status(400).json({ success: false, error: 'No valid target platforms specified' });
+      return;
+    }
+
+    // Build generation config with overrides
+    const generationConfig = {
+      ...campaign,
+      targetPlatforms: JSON.stringify(platforms),
+      style: style || campaign.style,
+      customInstructions: customInstructions !== undefined ? customInstructions : campaign.customInstructions,
+      selectedProducts: selectedProducts !== undefined ? JSON.stringify(selectedProducts) : campaign.selectedProducts,
+      includeBrandAd: includeBrandAd !== undefined ? includeBrandAd : campaign.includeBrandAd,
+    };
+
+    // Return immediately - generation happens async
+    res.json({
+      success: true,
+      message: `Starting additional ad generation for ${platforms.length} platforms`,
+      campaignId: campaign.id,
+      platforms: platforms.map((p: string) => ({
+        id: p,
+        ...PLATFORM_DIMENSIONS[p],
+      })),
+    });
+
+    // Generate ads in background (reuse the same function)
+    generateCampaignAds(generationConfig, platforms).catch((error) => {
+      console.error('Background ad generation failed:', error);
+    });
+  } catch (error) {
+    console.error('Error generating more campaign ads:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to generate more ads',
+    });
+  }
+});
+
+/**
  * POST /api/campaigns/:id/ads
  * Add an existing ad to a campaign
  */

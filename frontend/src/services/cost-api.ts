@@ -68,3 +68,22 @@ export async function getAdCosts(adId: string): Promise<{
   const response = await fetch(`${API_URL}/costs/ad/${adId}`);
   return response.json();
 }
+
+/**
+ * Get costs for all campaigns
+ */
+export async function getAllCampaignCosts(): Promise<{
+  success: boolean;
+  campaigns: {
+    id: string;
+    name: string;
+    total: number;
+    adCount: number;
+    avgPerAd: number;
+    createdAt: string;
+  }[];
+  totalAcrossCampaigns: number;
+}> {
+  const response = await fetch(`${API_URL}/costs/campaigns`);
+  return response.json();
+}

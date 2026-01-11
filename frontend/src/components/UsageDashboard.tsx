@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
   DollarSign,
   TrendingUp,
@@ -9,8 +10,10 @@ import {
   Calendar,
   ChevronDown,
   RefreshCw,
+  FolderOpen,
+  ExternalLink,
 } from 'lucide-react';
-import { getMonthlyUsage, getCosts } from '../services/cost-api';
+import { getMonthlyUsage, getCosts, getAllCampaignCosts } from '../services/cost-api';
 
 // Service display names and colors
 const SERVICE_INFO: Record<string, { name: string; color: string; icon: React.ReactNode }> = {
@@ -28,20 +31,32 @@ interface MonthlyData {
   byService: Record<string, number>;
 }
 
+interface CampaignCost {
+  id: string;
+  name: string;
+  total: number;
+  adCount: number;
+  avgPerAd: number;
+  createdAt: string;
+}
+
 export function UsageDashboard() {
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [totalSpending, setTotalSpending] = useState(0);
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [currentMonthBreakdown, setCurrentMonthBreakdown] = useState<Record<string, number>>({});
+  const [campaignCosts, setCampaignCosts] = useState<CampaignCost[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState<'all' | 'month' | 'week'>('all');
   const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [monthlyResponse, costsResponse] = await Promise.all([
+      const [monthlyResponse, costsResponse, campaignCostsResponse] = await Promise.all([
         getMonthlyUsage(),
         getCosts(),
+        getAllCampaignCosts(),
       ]);
 
       if (monthlyResponse.success) {
@@ -54,6 +69,10 @@ export function UsageDashboard() {
         if (currentMonthData) {
           setCurrentMonthBreakdown(currentMonthData.byService);
         }
+      }
+
+      if (campaignCostsResponse.success) {
+        setCampaignCosts(campaignCostsResponse.campaigns);
       }
     } catch (error) {
       console.error('Failed to fetch usage data:', error);
@@ -301,6 +320,76 @@ export function UsageDashboard() {
               <BarChart3 className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
               <p className="text-zinc-500">No service usage this month</p>
               <p className="text-zinc-600 text-sm mt-1">Start generating ads to track costs</p>
+            </div>
+          )}
+        </motion.div>
+
+        {/* Campaign Costs */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="bg-zinc-800/50 border border-zinc-700 rounded-xl p-6 mt-8"
+        >
+          <h2 className="text-lg font-semibold text-white mb-6">Cost by Campaign</h2>
+
+          {campaignCosts.length > 0 ? (
+            <div className="space-y-3">
+              {campaignCosts
+                .filter(c => c.total > 0)
+                .sort((a, b) => b.total - a.total)
+                .map((campaign) => {
+                  const maxCampaignCost = Math.max(...campaignCosts.map(c => c.total), 0.01);
+                  const percentage = (campaign.total / maxCampaignCost) * 100;
+
+                  return (
+                    <div
+                      key={campaign.id}
+                      className="group p-4 bg-zinc-700/30 rounded-lg hover:bg-zinc-700/50 transition-colors cursor-pointer"
+                      onClick={() => navigate(`/campaigns/${campaign.id}`)}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-indigo-500/20 rounded-lg">
+                            <FolderOpen className="w-4 h-4 text-indigo-400" />
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium text-white group-hover:text-indigo-300 transition-colors flex items-center gap-2">
+                              {campaign.name}
+                              <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                            <div className="text-xs text-zinc-500">
+                              {campaign.adCount} ad{campaign.adCount !== 1 ? 's' : ''} &middot; ~${campaign.avgPerAd.toFixed(4)}/ad
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-sm font-mono text-emerald-400">
+                          ${campaign.total.toFixed(4)}
+                        </div>
+                      </div>
+                      <div className="h-1.5 bg-zinc-600/50 rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${percentage}%` }}
+                          transition={{ duration: 0.5, ease: 'easeOut' }}
+                          className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+
+              {campaignCosts.filter(c => c.total === 0).length > 0 && (
+                <div className="text-xs text-zinc-500 mt-4">
+                  + {campaignCosts.filter(c => c.total === 0).length} campaign(s) with no tracked costs
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <FolderOpen className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
+              <p className="text-zinc-500">No campaigns yet</p>
+              <p className="text-zinc-600 text-sm mt-1">Create a campaign to track costs</p>
             </div>
           )}
         </motion.div>
