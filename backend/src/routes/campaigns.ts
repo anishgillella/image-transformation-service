@@ -1,6 +1,14 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../services/database';
-import { CampaignStatus } from '@prisma/client';
+
+// Define CampaignStatus locally to avoid Prisma client import issues during build
+const CampaignStatus = {
+  DRAFT: 'DRAFT',
+  GENERATING: 'GENERATING',
+  ACTIVE: 'ACTIVE',
+  COMPLETED: 'COMPLETED',
+  ARCHIVED: 'ARCHIVED',
+} as const;
 import { generateAdCopy, generateImagePrompt } from '../services/gemini';
 import { generateImage } from '../services/flux';
 import { uploadToCloudinary } from '../services/cloudinary';
@@ -50,7 +58,7 @@ router.get('/', async (_req: Request, res: Response) => {
 
     res.json({
       success: true,
-      campaigns: campaigns.map((c) => ({
+      campaigns: campaigns.map((c: any) => ({
         ...c,
         targetPlatforms: JSON.parse(c.targetPlatforms || '[]'),
         adCount: c._count.ads,

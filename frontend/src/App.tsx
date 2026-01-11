@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster, toast } from 'sonner';
@@ -11,6 +11,8 @@ import { AdForge } from './components/adforge/AdForge';
 import { CampaignList, CampaignCreate, CampaignView } from './components/campaigns';
 import { UsageDashboard } from './components/UsageDashboard';
 import { CostTracker } from './components/CostTracker';
+import { WarmupLoader } from './components/WarmupLoader';
+import { useBackendWarmup } from './hooks/useBackendWarmup';
 import { uploadImage } from './services/api';
 import type { ProcessedImage, AppState } from './types';
 
@@ -110,6 +112,13 @@ function ImageTransformerPage() {
 function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isWarming, isReady, checkHealth } = useBackendWarmup();
+  const [initialCheckDone, setInitialCheckDone] = useState(false);
+
+  // Check backend health on initial load
+  useEffect(() => {
+    checkHealth().finally(() => setInitialCheckDone(true));
+  }, [checkHealth]);
 
   // Determine active tab from URL
   const getActiveTab = (): 'adforge' | 'transformer' | 'campaigns' | 'usage' => {
@@ -126,6 +135,16 @@ function AppLayout() {
     else if (tab === 'usage') navigate('/usage');
     else navigate('/transformer');
   };
+
+  // Show warmup loader while backend is waking up
+  if (isWarming && !initialCheckDone) {
+    return <WarmupLoader message="Starting up Victoria..." />;
+  }
+
+  // Show warmup loader if backend needs to wake up (after initial check)
+  if (isWarming) {
+    return <WarmupLoader message="Reconnecting to server..." />;
+  }
 
   return (
     <div className="min-h-screen flex flex-col relative">
