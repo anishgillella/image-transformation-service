@@ -262,7 +262,7 @@ class CostTracker {
       },
     });
 
-    const total = ads.reduce((sum, ad) => sum + (ad.generationCost || 0), 0);
+    const total = ads.reduce((sum: number, ad: any) => sum + (ad.generationCost || 0), 0);
     const adCount = ads.length;
     const avgPerAd = adCount > 0 ? total / adCount : 0;
 
@@ -270,7 +270,7 @@ class CostTracker {
       total,
       adCount,
       avgPerAd,
-      ads: ads.map(ad => ({
+      ads: ads.map((ad: any) => ({
         id: ad.id,
         productName: ad.productName || 'Brand Ad',
         cost: ad.generationCost || 0,
@@ -342,12 +342,12 @@ class CostTracker {
       }
     }
 
-    const totalCost = entries.reduce((sum, entry) => sum + entry.cost, 0);
+    const totalCost = entries.reduce((sum: number, entry: any) => sum + entry.cost, 0);
 
     return {
       totalCost,
       byModel,
-      entries: entries.map(e => ({
+      entries: entries.map((e: any) => ({
         id: e.id,
         timestamp: e.createdAt,
         model: e.service as ModelId,
