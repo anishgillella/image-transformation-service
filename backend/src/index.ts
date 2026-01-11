@@ -7,8 +7,12 @@ import adforgeRoutes from './routes/adforge';
 import campaignRoutes from './routes/campaigns';
 import { costTracker } from './services/costTracker';
 
-// Load environment variables from workspace root (uplane/.env)
-dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
+// Load environment variables
+// Production (Render): env vars are already set via dashboard
+// Development: load from workspace root
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;

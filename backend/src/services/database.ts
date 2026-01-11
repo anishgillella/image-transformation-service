@@ -5,8 +5,12 @@ import { Pool } from 'pg';
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Load env from workspace root (uplane/.env)
-dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
+// Load env - try multiple paths for different environments
+// Production (Render): env vars are already set, dotenv is optional
+// Development: load from workspace root
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
+}
 
 // Create PostgreSQL connection pool
 const connectionString = process.env.DATABASE_URL;
