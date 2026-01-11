@@ -1,7 +1,5 @@
 // Cost tracking service with database persistence
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from './database';
 
 // Pricing per 1K tokens/units (in USD)
 export const MODEL_PRICING = {
