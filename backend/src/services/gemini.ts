@@ -1,9 +1,5 @@
 import axios from 'axios';
-import dotenv from 'dotenv';
-import path from 'path';
 import { costTracker } from './costTracker';
-
-dotenv.config({ path: path.resolve('/Users/anishgillella/Desktop/Stuff/Projects/uplane/.env') });
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
@@ -63,21 +59,87 @@ export async function chatWithGemini(
 }
 
 /**
- * Analyze brand from website content and extract all products/services
+ * Detect if a URL is likely a product page vs a brand homepage
  */
-export async function analyzeBrand(websiteContent: string, url: string): Promise<string> {
-  const systemPrompt = `You are an elite brand strategist with 20+ years of experience at top agencies like Wieden+Kennedy and Droga5. Your expertise is extracting the essence of a brand and understanding their product portfolio for marketing purposes.
+function detectUrlType(url: string): 'product' | 'brand' {
+  const urlLower = url.toLowerCase();
 
-TASK: Analyze the provided website content and extract:
-1. A comprehensive brand profile
-2. ALL products or services offered, with marketing-ready insights for each
+  // Common product page patterns
+  const productPatterns = [
+    /\/products?\//i,           // /product/ or /products/
+    /\/p\//i,                   // /p/ (common shorthand)
+    /\/item\//i,                // /item/
+    /\/dp\//i,                  // Amazon-style /dp/
+    /\/[a-z-]+-[a-z0-9]{5,}/i,  // slug-with-sku pattern
+    /\/(t|i|c)\/[^\/]+\/[A-Z0-9-]+$/i, // Nike-style /t/name/SKU
+    /\/shop\/[^\/]+\/[^\/]+/i,  // /shop/category/product
+    /[\?\&]sku=/i,              // ?sku= query param
+    /[\?\&]pid=/i,              // ?pid= query param
+    /[\?\&]product_id=/i,       // ?product_id= query param
+  ];
+
+  for (const pattern of productPatterns) {
+    if (pattern.test(urlLower)) {
+      return 'product';
+    }
+  }
+
+  // If URL has many path segments with alphanumeric IDs, likely a product
+  const pathParts = new URL(url).pathname.split('/').filter(Boolean);
+  if (pathParts.length >= 2) {
+    const lastPart = pathParts[pathParts.length - 1];
+    // Check if last segment looks like a product SKU (alphanumeric with dashes)
+    if (/^[A-Z0-9]+-[A-Z0-9]+$/i.test(lastPart) || /^[A-Z]{2,}\d{3,}/i.test(lastPart)) {
+      return 'product';
+    }
+  }
+
+  return 'brand';
+}
+
+/**
+ * Analyze brand from website content and extract all products/services
+ * @param websiteContent - The extracted content from the website
+ * @param url - The URL being analyzed
+ * @param userUrlType - Optional user-specified URL type (overrides auto-detection)
+ */
+export async function analyzeBrand(websiteContent: string, url: string, userUrlType?: 'brand' | 'product'): Promise<string> {
+  // Use user-specified type if provided, otherwise auto-detect
+  const urlType = userUrlType || detectUrlType(url);
+  console.log(`URL type: ${urlType} for ${url}${userUrlType ? ' (user specified)' : ' (auto-detected)'}`);
+
+  const basePrompt = `You are an elite brand strategist with 20+ years of experience at top agencies like Wieden+Kennedy and Droga5. Your expertise is extracting the essence of a brand and understanding their product portfolio for marketing purposes.`;
+
+  const productPageInstructions = `
+PAGE TYPE: This is a SPECIFIC PRODUCT PAGE.
+
+IMPORTANT:
+- The main product shown is what we want to create ads for
+- Extract the parent company/brand info for brand consistency
+- Focus deeply on THIS specific product's features, benefits, and selling points
+- The products array should contain THIS product as the primary entry with rich detail
+- You may include 1-2 related products if mentioned, but the main product should be comprehensive`;
+
+  const brandPageInstructions = `
+PAGE TYPE: This appears to be a BRAND HOMEPAGE or general page.
+
+IMPORTANT:
+- Extract the overall brand identity and positioning
+- Find ALL products or services mentioned on this page
+- Each product should have detailed marketing insights`;
+
+  const pageTypeInstructions = urlType === 'product' ? productPageInstructions : brandPageInstructions;
+
+  const systemPrompt = `${basePrompt}
+
+${pageTypeInstructions}
 
 ANALYSIS FRAMEWORK:
 1. **Brand Essence**: Core promise/value this brand delivers
 2. **Visual Identity**: Infer color palette from industry, messaging, and tone
 3. **Voice Analysis**: Communication style - formal/casual, technical/accessible, bold/subtle
 4. **Audience Profiling**: Who they're speaking to - demographics + psychographics
-5. **Product Portfolio**: Every product/service with specific marketing angles
+5. **Product Portfolio**: ${urlType === 'product' ? 'Deep-dive on the specific product shown' : 'Every product/service with specific marketing angles'}
 
 Return a JSON object with EXACTLY this structure (no markdown, just raw JSON):
 {
@@ -106,10 +168,16 @@ Return a JSON object with EXACTLY this structure (no markdown, just raw JSON):
 }
 
 PRODUCT EXTRACTION RULES:
+${urlType === 'product' ? `
+- Focus on the MAIN product being displayed
+- Extract ALL features, specs, and benefits mentioned
+- The promotionAngle should be highly specific to this exact product
+- Include price point if visible (for ad targeting context)
+- Make the product description rich and detailed for ad generation` : `
 - Extract EVERY product or service mentioned
 - If only one product exists, still return it in the products array
 - For SaaS: each pricing tier or feature set can be a separate "product"
-- For services: each service offering is a product
+- For services: each service offering is a product`}
 - promotionAngle should be specific and actionable - what makes someone want to buy THIS product
 
 COLOR INFERENCE GUIDELINES:
@@ -119,15 +187,20 @@ COLOR INFERENCE GUIDELINES:
 - Creative/Agency: Bold colors, black/white, unconventional
 - E-commerce: Warm and inviting, category-dependent
 - B2B Enterprise: Professional blues, grays, conservative
+- Athletic/Sportswear: Bold blacks, energetic colors (Nike=#FA5400, Adidas=#000000)
 
 BE SPECIFIC. Every insight should be actionable for creating targeted ads.`;
 
+  const userPrompt = urlType === 'product'
+    ? `Analyze this PRODUCT PAGE and extract brand info + detailed product information (${url}):\n\n---WEBSITE CONTENT---\n${websiteContent}\n---END CONTENT---\n\nExtract the brand profile with focus on this specific product:`
+    : `Analyze this company's brand and extract all products (${url}):\n\n---WEBSITE CONTENT---\n${websiteContent}\n---END CONTENT---\n\nExtract the complete brand profile with all products:`;
+
   const response = await chatWithGemini([
     { role: 'system', content: systemPrompt },
-    { role: 'user', content: `Analyze this company's brand and extract all products (${url}):\n\n---WEBSITE CONTENT---\n${websiteContent}\n---END CONTENT---\n\nExtract the complete brand profile with all products:` },
+    { role: 'user', content: userPrompt },
   ], {
     temperature: 0.4,
-    maxTokens: 3000, // Increased for product details
+    maxTokens: 3000,
   });
 
   return response.content;

@@ -1,7 +1,7 @@
-import dotenv from 'dotenv';
-import path from 'path';
+// Cost tracking service with database persistence
+import { PrismaClient } from '@prisma/client';
 
-dotenv.config({ path: path.resolve('/Users/anishgillella/Desktop/Stuff/Projects/uplane/.env') });
+const prisma = new PrismaClient();
 
 // Pricing per 1K tokens/units (in USD)
 export const MODEL_PRICING = {
@@ -45,7 +45,7 @@ export interface TokenUsage {
   completionTokens: number;
 }
 
-export interface CostEntry {
+export interface CostEntryData {
   id: string;
   timestamp: Date;
   model: ModelId;
@@ -55,6 +55,7 @@ export interface CostEntry {
   imageCount?: number;
   requestCount?: number;
   cost: number;
+  adId?: string;
   metadata?: Record<string, any>;
 }
 
@@ -68,168 +69,335 @@ export interface CostSummary {
     images?: number;
     requests?: number;
   }>;
-  entries: CostEntry[];
-  sessionStart: Date;
+  entries: CostEntryData[];
+  periodStart: Date;
+}
+
+export interface AdCostBreakdown {
+  imageGeneration: number;
+  copyGeneration: number;
+  backgroundRemoval: number;
+  upload: number;
+  total: number;
 }
 
 class CostTracker {
-  private entries: CostEntry[] = [];
-  private sessionStart: Date = new Date();
-
   /**
-   * Track token-based model usage (LLMs)
+   * Track token-based model usage (LLMs) and persist to database
    */
-  trackTokenUsage(
+  async trackTokenUsage(
     model: 'gemini-3-flash',
     operation: string,
     usage: TokenUsage,
+    adId?: string,
     metadata?: Record<string, any>
-  ): CostEntry {
+  ): Promise<CostEntryData> {
     const pricing = MODEL_PRICING[model];
     const inputCost = (usage.promptTokens / 1000) * pricing.input;
     const outputCost = (usage.completionTokens / 1000) * pricing.output;
     const totalCost = inputCost + outputCost;
 
-    const entry: CostEntry = {
-      id: `cost-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      timestamp: new Date(),
+    const details = JSON.stringify({
+      inputTokens: usage.promptTokens,
+      outputTokens: usage.completionTokens,
+      ...metadata,
+    });
+
+    // Persist to database
+    const dbEntry = await prisma.costEntry.create({
+      data: {
+        service: model,
+        operation,
+        cost: totalCost,
+        details,
+        adId,
+      },
+    });
+
+    console.log(`[Cost] ${pricing.displayName} - ${operation}: $${totalCost.toFixed(6)} (${usage.promptTokens}+${usage.completionTokens} tokens)`);
+
+    return {
+      id: dbEntry.id,
+      timestamp: dbEntry.createdAt,
       model,
       operation,
       inputTokens: usage.promptTokens,
       outputTokens: usage.completionTokens,
       cost: totalCost,
+      adId: adId || undefined,
       metadata,
     };
-
-    this.entries.push(entry);
-    console.log(`[Cost] ${pricing.displayName} - ${operation}: $${totalCost.toFixed(6)} (${usage.promptTokens}+${usage.completionTokens} tokens)`);
-    return entry;
   }
 
   /**
-   * Track image generation costs (Flux, Remove.bg)
+   * Track image generation costs (Flux, Remove.bg) and persist to database
    */
-  trackImageGeneration(
+  async trackImageGeneration(
     model: 'flux-pro-1.1' | 'flux-pro-fill' | 'remove-bg' | 'cloudinary',
     operation: string,
     imageCount: number = 1,
+    adId?: string,
     metadata?: Record<string, any>
-  ): CostEntry {
+  ): Promise<CostEntryData> {
     const pricing = MODEL_PRICING[model];
     const perImageCost = 'perImage' in pricing ? pricing.perImage : ('perUpload' in pricing ? pricing.perUpload : 0);
     const totalCost = perImageCost * imageCount;
 
-    const entry: CostEntry = {
-      id: `cost-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      timestamp: new Date(),
+    const details = JSON.stringify({
+      imageCount,
+      ...metadata,
+    });
+
+    // Persist to database
+    const dbEntry = await prisma.costEntry.create({
+      data: {
+        service: model,
+        operation,
+        cost: totalCost,
+        details,
+        adId,
+      },
+    });
+
+    console.log(`[Cost] ${pricing.displayName} - ${operation}: $${totalCost.toFixed(4)} (${imageCount} image(s))`);
+
+    return {
+      id: dbEntry.id,
+      timestamp: dbEntry.createdAt,
       model,
       operation,
       imageCount,
       cost: totalCost,
+      adId: adId || undefined,
       metadata,
     };
-
-    this.entries.push(entry);
-    console.log(`[Cost] ${pricing.displayName} - ${operation}: $${totalCost.toFixed(4)} (${imageCount} image(s))`);
-    return entry;
   }
 
   /**
-   * Track API request costs (Parallel AI)
+   * Track API request costs (Parallel AI) and persist to database
    */
-  trackApiRequest(
+  async trackApiRequest(
     model: 'parallel-ai',
     operation: string,
     requestCount: number = 1,
+    adId?: string,
     metadata?: Record<string, any>
-  ): CostEntry {
+  ): Promise<CostEntryData> {
     const pricing = MODEL_PRICING[model];
     const totalCost = pricing.perRequest * requestCount;
 
-    const entry: CostEntry = {
-      id: `cost-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      timestamp: new Date(),
+    const details = JSON.stringify({
+      requestCount,
+      ...metadata,
+    });
+
+    // Persist to database
+    const dbEntry = await prisma.costEntry.create({
+      data: {
+        service: model,
+        operation,
+        cost: totalCost,
+        details,
+        adId,
+      },
+    });
+
+    console.log(`[Cost] ${pricing.displayName} - ${operation}: $${totalCost.toFixed(4)} (${requestCount} request(s))`);
+
+    return {
+      id: dbEntry.id,
+      timestamp: dbEntry.createdAt,
       model,
       operation,
       requestCount,
       cost: totalCost,
+      adId: adId || undefined,
       metadata,
     };
-
-    this.entries.push(entry);
-    console.log(`[Cost] ${pricing.displayName} - ${operation}: $${totalCost.toFixed(4)} (${requestCount} request(s))`);
-    return entry;
   }
 
   /**
-   * Get summary of all costs
+   * Update an ad with its total generation cost and breakdown
    */
-  getSummary(): CostSummary {
+  async updateAdCosts(adId: string, breakdown: AdCostBreakdown): Promise<void> {
+    await prisma.ad.update({
+      where: { id: adId },
+      data: {
+        generationCost: breakdown.total,
+        costBreakdown: JSON.stringify(breakdown),
+      },
+    });
+    console.log(`[Cost] Updated ad ${adId} with total cost: $${breakdown.total.toFixed(4)}`);
+  }
+
+  /**
+   * Get cost summary for a specific ad
+   */
+  async getAdCosts(adId: string): Promise<{ total: number; breakdown: AdCostBreakdown | null; entries: any[] }> {
+    const ad = await prisma.ad.findUnique({
+      where: { id: adId },
+      include: { costs: true },
+    });
+
+    if (!ad) {
+      return { total: 0, breakdown: null, entries: [] };
+    }
+
+    return {
+      total: ad.generationCost || 0,
+      breakdown: ad.costBreakdown ? JSON.parse(ad.costBreakdown) : null,
+      entries: ad.costs,
+    };
+  }
+
+  /**
+   * Get cost summary for a campaign (aggregates all ads)
+   */
+  async getCampaignCosts(campaignId: string): Promise<{ total: number; adCount: number; avgPerAd: number; ads: any[] }> {
+    const ads = await prisma.ad.findMany({
+      where: { campaignId },
+      select: {
+        id: true,
+        productName: true,
+        generationCost: true,
+        costBreakdown: true,
+      },
+    });
+
+    const total = ads.reduce((sum, ad) => sum + (ad.generationCost || 0), 0);
+    const adCount = ads.length;
+    const avgPerAd = adCount > 0 ? total / adCount : 0;
+
+    return {
+      total,
+      adCount,
+      avgPerAd,
+      ads: ads.map(ad => ({
+        id: ad.id,
+        productName: ad.productName || 'Brand Ad',
+        cost: ad.generationCost || 0,
+        breakdown: ad.costBreakdown ? JSON.parse(ad.costBreakdown) : null,
+      })),
+    };
+  }
+
+  /**
+   * Get summary of all costs from database
+   */
+  async getSummary(since?: Date): Promise<CostSummary> {
+    const whereClause = since ? { createdAt: { gte: since } } : {};
+
+    const entries = await prisma.costEntry.findMany({
+      where: whereClause,
+      orderBy: { createdAt: 'desc' },
+      take: 100, // Limit to last 100 entries
+    });
+
     const byModel: CostSummary['byModel'] = {};
 
-    for (const entry of this.entries) {
-      if (!byModel[entry.model]) {
-        const pricing = MODEL_PRICING[entry.model];
-        byModel[entry.model] = {
-          displayName: pricing.displayName,
+    for (const entry of entries) {
+      const model = entry.service as ModelId;
+      if (!byModel[model]) {
+        const pricing = MODEL_PRICING[model];
+        byModel[model] = {
+          displayName: pricing?.displayName || model,
           totalCost: 0,
           count: 0,
         };
       }
 
-      byModel[entry.model].totalCost += entry.cost;
-      byModel[entry.model].count += 1;
+      byModel[model].totalCost += entry.cost;
+      byModel[model].count += 1;
 
-      // Track tokens for LLMs
-      if (entry.inputTokens !== undefined && entry.outputTokens !== undefined) {
-        if (!byModel[entry.model].tokens) {
-          byModel[entry.model].tokens = { input: 0, output: 0 };
-        }
-        byModel[entry.model].tokens!.input += entry.inputTokens;
-        byModel[entry.model].tokens!.output += entry.outputTokens;
-      }
+      // Parse details for additional info
+      if (entry.details) {
+        try {
+          const details = JSON.parse(entry.details);
 
-      // Track images
-      if (entry.imageCount !== undefined) {
-        if (!byModel[entry.model].images) {
-          byModel[entry.model].images = 0;
-        }
-        byModel[entry.model].images! += entry.imageCount;
-      }
+          // Track tokens for LLMs
+          if (details.inputTokens !== undefined && details.outputTokens !== undefined) {
+            if (!byModel[model].tokens) {
+              byModel[model].tokens = { input: 0, output: 0 };
+            }
+            byModel[model].tokens!.input += details.inputTokens;
+            byModel[model].tokens!.output += details.outputTokens;
+          }
 
-      // Track requests
-      if (entry.requestCount !== undefined) {
-        if (!byModel[entry.model].requests) {
-          byModel[entry.model].requests = 0;
+          // Track images
+          if (details.imageCount !== undefined) {
+            if (!byModel[model].images) {
+              byModel[model].images = 0;
+            }
+            byModel[model].images! += details.imageCount;
+          }
+
+          // Track requests
+          if (details.requestCount !== undefined) {
+            if (!byModel[model].requests) {
+              byModel[model].requests = 0;
+            }
+            byModel[model].requests! += details.requestCount;
+          }
+        } catch (e) {
+          // Ignore parse errors
         }
-        byModel[entry.model].requests! += entry.requestCount;
       }
     }
 
-    const totalCost = this.entries.reduce((sum, entry) => sum + entry.cost, 0);
+    const totalCost = entries.reduce((sum, entry) => sum + entry.cost, 0);
 
     return {
       totalCost,
       byModel,
-      entries: [...this.entries].reverse(), // Most recent first
-      sessionStart: this.sessionStart,
+      entries: entries.map(e => ({
+        id: e.id,
+        timestamp: e.createdAt,
+        model: e.service as ModelId,
+        operation: e.operation,
+        cost: e.cost,
+        adId: e.adId || undefined,
+      })),
+      periodStart: since || new Date(0),
     };
   }
 
   /**
-   * Reset all tracked costs (for new session)
+   * Get monthly usage summary
    */
-  reset(): void {
-    this.entries = [];
-    this.sessionStart = new Date();
-    console.log('[Cost] Tracker reset');
+  async getMonthlyUsage(): Promise<{ month: string; total: number; byService: Record<string, number> }[]> {
+    const entries = await prisma.costEntry.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Group by month
+    const byMonth: Record<string, { total: number; byService: Record<string, number> }> = {};
+
+    for (const entry of entries) {
+      const monthKey = entry.createdAt.toISOString().slice(0, 7); // YYYY-MM
+
+      if (!byMonth[monthKey]) {
+        byMonth[monthKey] = { total: 0, byService: {} };
+      }
+
+      byMonth[monthKey].total += entry.cost;
+      byMonth[monthKey].byService[entry.service] =
+        (byMonth[monthKey].byService[entry.service] || 0) + entry.cost;
+    }
+
+    return Object.entries(byMonth).map(([month, data]) => ({
+      month,
+      ...data,
+    }));
   }
 
   /**
-   * Get entries for a specific time range
+   * Get total spending
    */
-  getEntriesSince(since: Date): CostEntry[] {
-    return this.entries.filter(entry => entry.timestamp >= since);
+  async getTotalSpending(): Promise<number> {
+    const result = await prisma.costEntry.aggregate({
+      _sum: { cost: true },
+    });
+    return result._sum.cost || 0;
   }
 }
 

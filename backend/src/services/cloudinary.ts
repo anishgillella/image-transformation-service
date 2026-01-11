@@ -1,9 +1,5 @@
 import { v2 as cloudinary } from 'cloudinary';
-import dotenv from 'dotenv';
-import path from 'path';
 import { costTracker } from './costTracker';
-
-dotenv.config({ path: path.resolve('/Users/anishgillella/Desktop/Stuff/Projects/uplane/.env') });
 
 // Configure Cloudinary
 cloudinary.config({

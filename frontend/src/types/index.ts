@@ -189,6 +189,8 @@ export interface CampaignCreateInput {
   targetPlatforms: ExportPlatform[];
   style?: AdStyle;
   customInstructions?: string;
+  selectedProducts?: number[];
+  includeBrandAd?: boolean;
 }
 
 export interface CampaignUpdateInput {
@@ -228,5 +230,5 @@ export interface CostSummary {
   totalCost: number;
   byModel: Record<string, ModelCostSummary>;
   entries: CostEntry[];
-  sessionStart: string;
+  periodStart: string;
 }

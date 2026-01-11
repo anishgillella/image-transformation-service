@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DollarSign, RotateCcw, ChevronDown, ChevronUp, Zap, Image, Globe, Cloud } from 'lucide-react';
-import { getCosts, resetCosts } from '../services/cost-api';
+import { getCosts } from '../services/cost-api';
 import type { CostSummary } from '../types';
 
 // Model icons mapping
@@ -48,13 +48,8 @@ export function CostTracker({ refreshInterval = 5000, minimized: initialMinimize
     }
   }, []);
 
-  const handleReset = useCallback(async () => {
-    try {
-      await resetCosts();
-      await fetchCosts();
-    } catch (error) {
-      console.error('Failed to reset costs:', error);
-    }
+  const handleRefresh = useCallback(async () => {
+    await fetchCosts();
   }, [fetchCosts]);
 
   useEffect(() => {
@@ -114,9 +109,9 @@ export function CostTracker({ refreshInterval = 5000, minimized: initialMinimize
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={handleReset}
+                  onClick={handleRefresh}
                   className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
-                  title="Reset costs"
+                  title="Refresh costs"
                 >
                   <RotateCcw className="w-4 h-4" />
                 </button>
@@ -131,12 +126,12 @@ export function CostTracker({ refreshInterval = 5000, minimized: initialMinimize
 
             {/* Total Cost */}
             <div className="px-4 py-4 border-b border-zinc-800">
-              <div className="text-xs text-zinc-500 uppercase tracking-wide mb-1">Session Total</div>
+              <div className="text-xs text-zinc-500 uppercase tracking-wide mb-1">Total Spending</div>
               <div className="text-3xl font-mono font-bold text-white">
                 ${costs.totalCost.toFixed(4)}
               </div>
               <div className="text-xs text-zinc-500 mt-1">
-                Since {new Date(costs.sessionStart).toLocaleTimeString()}
+                All time
               </div>
             </div>
 

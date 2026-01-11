@@ -4,11 +4,11 @@ import dotenv from 'dotenv';
 import path from 'path';
 import imageRoutes from './routes/images';
 import adforgeRoutes from './routes/adforge';
-// import campaignRoutes from './routes/campaigns'; // TODO: Enable when Prisma is fully configured
+import campaignRoutes from './routes/campaigns';
 import { costTracker } from './services/costTracker';
 
-// Load environment variables from the shared .env file
-dotenv.config({ path: path.resolve('/Users/anishgillella/Desktop/Stuff/Projects/uplane/.env') });
+// Load environment variables from workspace root
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,7 +20,7 @@ app.use(express.json({ limit: '50mb' })); // Increased for base64 images
 // Routes
 app.use('/api/images', imageRoutes);
 app.use('/api/adforge', adforgeRoutes);
-// app.use('/api/campaigns', campaignRoutes); // TODO: Enable when Prisma is fully configured
+app.use('/api/campaigns', campaignRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -28,14 +28,46 @@ app.get('/api/health', (req, res) => {
 });
 
 // Cost tracking endpoints
-app.get('/api/costs', (req, res) => {
-  const summary = costTracker.getSummary();
-  res.json({ success: true, ...summary });
+app.get('/api/costs', async (req, res) => {
+  try {
+    const since = req.query.since ? new Date(req.query.since as string) : undefined;
+    const summary = await costTracker.getSummary(since);
+    res.json({ success: true, ...summary });
+  } catch (error) {
+    console.error('Error getting costs:', error);
+    res.status(500).json({ success: false, error: 'Failed to get costs' });
+  }
 });
 
-app.post('/api/costs/reset', (req, res) => {
-  costTracker.reset();
-  res.json({ success: true, message: 'Cost tracker reset' });
+app.get('/api/costs/monthly', async (req, res) => {
+  try {
+    const monthly = await costTracker.getMonthlyUsage();
+    const total = await costTracker.getTotalSpending();
+    res.json({ success: true, monthly, totalSpending: total });
+  } catch (error) {
+    console.error('Error getting monthly costs:', error);
+    res.status(500).json({ success: false, error: 'Failed to get monthly costs' });
+  }
+});
+
+app.get('/api/costs/campaign/:id', async (req, res) => {
+  try {
+    const campaignCosts = await costTracker.getCampaignCosts(req.params.id as string);
+    res.json({ success: true, ...campaignCosts });
+  } catch (error) {
+    console.error('Error getting campaign costs:', error);
+    res.status(500).json({ success: false, error: 'Failed to get campaign costs' });
+  }
+});
+
+app.get('/api/costs/ad/:id', async (req, res) => {
+  try {
+    const adCosts = await costTracker.getAdCosts(req.params.id as string);
+    res.json({ success: true, ...adCosts });
+  } catch (error) {
+    console.error('Error getting ad costs:', error);
+    res.status(500).json({ success: false, error: 'Failed to get ad costs' });
+  }
 });
 
 // Error handling middleware

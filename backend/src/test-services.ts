@@ -1,9 +1,8 @@
 import dotenv from 'dotenv';
-import path from 'path';
 import axios from 'axios';
 
 // Load env first
-dotenv.config({ path: path.resolve('/Users/anishgillella/Desktop/Stuff/Projects/uplane/.env') });
+dotenv.config();
 
 async function testAllAPIs() {
   console.log('='.repeat(60));

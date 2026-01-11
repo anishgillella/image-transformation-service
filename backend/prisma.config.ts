@@ -1,10 +1,10 @@
 // Prisma configuration
-import "dotenv/config";
+import dotenv from "dotenv";
 import path from "path";
 import { defineConfig } from "prisma/config";
 
-// SQLite database file path - relative to this config file
-const dbPath = path.resolve(__dirname, "prisma/dev.db");
+// Load env from workspace root
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
@@ -12,6 +12,8 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: `file:${dbPath}`,
+    // Supabase PostgreSQL - uses connection pooler for main URL
+    url: process.env.DATABASE_URL!,
+    directUrl: process.env.DIRECT_URL,
   },
 });

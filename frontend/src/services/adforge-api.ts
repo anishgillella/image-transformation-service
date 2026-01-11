@@ -16,12 +16,14 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 /**
  * Analyze a company URL and get brand profile with products
+ * @param url - The URL to analyze
+ * @param urlType - 'brand' for company/homepage, 'product' for specific product page
  */
-export async function analyzeCompany(url: string): Promise<AnalyzeResponse> {
+export async function analyzeCompany(url: string, urlType: 'brand' | 'product' = 'brand'): Promise<AnalyzeResponse> {
   const response = await fetch(`${API_URL}/adforge/analyze`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url }),
+    body: JSON.stringify({ url, urlType }),
   });
 
   return response.json();

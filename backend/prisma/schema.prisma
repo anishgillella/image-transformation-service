@@ -5,9 +5,9 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// Using SQLite for local development - switch to PostgreSQL for production
+// PostgreSQL via Supabase (connection URL in prisma.config.ts)
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 // ============================================================
@@ -52,6 +52,8 @@ model Campaign {
   targetPlatforms String         // JSON array of platform IDs
   style           String?        // Default style for campaign ads
   customInstructions String?
+  selectedProducts String?       // JSON array of product indices
+  includeBrandAd  Boolean        @default(true)
 
   // Relations
   brandProfileId  String
@@ -97,8 +99,13 @@ model Ad {
   productImageUrl   String?
   imagePrompt       String?   // The prompt used to generate the image
 
+  // Cost tracking - total cost to generate this ad
+  generationCost    Float?    // Total cost in USD
+  costBreakdown     String?   // JSON: { imageGeneration: 0.04, copyGeneration: 0.002, ... }
+
   // Platform-specific exports
   exports           AdExport[]
+  costs             CostEntry[]
 
   // Relations
   brandProfileId    String
@@ -180,11 +187,16 @@ model CostEntry {
   service     String   // gemini, flux-pro, flux-fill, cloudinary, parallel-ai
   operation   String   // chat-completion, image-generation, etc.
   cost        Float
-  details     String?  // JSON with additional info (tokens, etc.)
+  details     String?  // JSON with additional info (tokens, images, etc.)
+
+  // Optional link to ad (for per-ad cost tracking)
+  adId        String?
+  ad          Ad?      @relation(fields: [adId], references: [id], onDelete: SetNull)
 
   // Timestamps
   createdAt   DateTime @default(now())
 
   @@index([service])
   @@index([createdAt])
+  @@index([adId])
 }

@@ -1,9 +1,5 @@
 import axios from 'axios';
-import dotenv from 'dotenv';
-import path from 'path';
 import { costTracker } from './costTracker';
-
-dotenv.config({ path: path.resolve('/Users/anishgillella/Desktop/Stuff/Projects/uplane/.env') });
 
 const BFL_API_URL = 'https://api.bfl.ml/v1';
 
@@ -13,6 +9,17 @@ interface FluxGenerateOptions {
   height?: number;
   steps?: number;
   guidance?: number;
+}
+
+/**
+ * Round dimensions to be divisible by 32 (Flux API requirement)
+ * Also ensures minimum 256 and maximum 1440
+ */
+function normalizeFluxDimension(dim: number): number {
+  // Clamp to valid range
+  const clamped = Math.max(256, Math.min(1440, dim));
+  // Round to nearest 32
+  return Math.round(clamped / 32) * 32;
 }
 
 interface FluxFillOptions {
@@ -27,13 +34,19 @@ interface FluxFillOptions {
  * Generate an image using Flux.2 Pro
  */
 export async function generateImage(options: FluxGenerateOptions): Promise<Buffer> {
+  // Normalize dimensions to Flux API requirements
+  const width = normalizeFluxDimension(options.width ?? 1024);
+  const height = normalizeFluxDimension(options.height ?? 1024);
+
+  console.log(`Flux: Generating image at ${width}x${height} (requested: ${options.width}x${options.height})`);
+
   // Step 1: Submit generation request
   const submitResponse = await axios.post(
     `${BFL_API_URL}/flux-pro-1.1`,
     {
       prompt: options.prompt,
-      width: options.width ?? 1024,
-      height: options.height ?? 1024,
+      width,
+      height,
       steps: options.steps ?? 25,
       guidance: options.guidance ?? 3,
       safety_tolerance: 2,
@@ -55,8 +68,8 @@ export async function generateImage(options: FluxGenerateOptions): Promise<Buffe
   // Step 3: Download image
   const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
 
-  // Track cost
-  costTracker.trackImageGeneration('flux-pro-1.1', 'image-generation', 1, { prompt: options.prompt.substring(0, 100) });
+  // Track cost (no adId, just metadata)
+  costTracker.trackImageGeneration('flux-pro-1.1', 'image-generation', 1, undefined, { prompt: options.prompt.substring(0, 100) });
 
   return Buffer.from(imageResponse.data);
 }
@@ -97,8 +110,8 @@ export async function fillImage(options: FluxFillOptions): Promise<Buffer> {
   // Step 3: Download image
   const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
 
-  // Track cost
-  costTracker.trackImageGeneration('flux-pro-fill', 'image-fill', 1, { prompt: options.prompt.substring(0, 100) });
+  // Track cost (no adId, just metadata)
+  costTracker.trackImageGeneration('flux-pro-fill', 'image-fill', 1, undefined, { prompt: options.prompt.substring(0, 100) });
 
   return Buffer.from(imageResponse.data);
 }
