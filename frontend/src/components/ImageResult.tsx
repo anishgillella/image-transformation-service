@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Copy, Check, Download, RefreshCw, ArrowRight } from 'lucide-react';
+import { Copy, Check, Download, RefreshCw, ArrowRight, Trash2 } from 'lucide-react';
+import { deleteImage } from '../services/api';
 import type { ProcessedImage } from '../types';
 
 interface ImageResultProps {
   originalPreview: string;
   result: ProcessedImage;
   onReset: () => void;
+  onDelete?: () => void;
 }
 
-export function ImageResult({ originalPreview, result, onReset }: ImageResultProps) {
+export function ImageResult({ originalPreview, result, onReset, onDelete }: ImageResultProps) {
   const [copied, setCopied] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(result.url);
@@ -24,6 +27,24 @@ export function ImageResult({ originalPreview, result, onReset }: ImageResultPro
     link.download = `transformed-${result.originalName}`;
     link.target = '_blank';
     link.click();
+  };
+
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this image? This action cannot be undone.')) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await deleteImage(result.id);
+      onDelete?.();
+      onReset();
+    } catch (error) {
+      console.error('Failed to delete image:', error);
+      alert('Failed to delete image. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -164,6 +185,16 @@ export function ImageResult({ originalPreview, result, onReset }: ImageResultPro
         >
           <RefreshCw size={20} />
           Transform Another
+        </motion.button>
+        <motion.button
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={handleDelete}
+          disabled={isDeleting}
+          className="flex items-center gap-2 px-8 py-4 bg-red-50 border border-red-200 text-red-600 rounded-xl font-medium hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Trash2 size={20} />
+          {isDeleting ? 'Deleting...' : 'Delete'}
         </motion.button>
       </motion.div>
     </motion.div>
