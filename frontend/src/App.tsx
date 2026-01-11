@@ -275,7 +275,7 @@ function AppLayout() {
         transition={{ delay: 0.5 }}
         className="py-6 text-center text-sm text-gray-400 relative z-10"
       >
-        Built for Uplane
+        Built with AdForge
       </motion.footer>
 
       {/* Cost Tracker */}
