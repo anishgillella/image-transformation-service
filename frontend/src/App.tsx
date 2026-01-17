@@ -8,7 +8,7 @@ import { UploadZone } from './components/UploadZone';
 import { ProcessingState } from './components/ProcessingState';
 import { ImageResult } from './components/ImageResult';
 import { AdForge } from './components/adforge/AdForge';
-import { CampaignList, CampaignCreate, CampaignView } from './components/campaigns';
+import { CampaignList, CampaignCreate, CampaignView, CampaignEdit } from './components/campaigns';
 import { UsageDashboard } from './components/UsageDashboard';
 import { CostTracker } from './components/CostTracker';
 import { WarmupLoader } from './components/WarmupLoader';
@@ -246,6 +246,20 @@ function AppLayout() {
                   className="flex-1"
                 >
                   <CampaignView />
+                </motion.div>
+              }
+            />
+            <Route
+              path="/campaigns/:id/edit"
+              element={
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex-1"
+                >
+                  <CampaignEdit />
                 </motion.div>
               }
             />

@@ -218,7 +218,7 @@ router.post('/', async (req: Request, res: Response) => {
 router.put('/:id', async (req: Request, res: Response) => {
   try {
     const campaignId = req.params.id as string;
-    const { name, description, targetPlatforms, style, customInstructions, status } = req.body;
+    const { name, description, targetPlatforms, style, customInstructions, status, selectedProducts, includeBrandAd } = req.body;
 
     const existingCampaign = await prisma.campaign.findUnique({
       where: { id: campaignId },
@@ -240,6 +240,12 @@ router.put('/:id', async (req: Request, res: Response) => {
     if (customInstructions !== undefined) updateData.customInstructions = customInstructions;
     if (status !== undefined && Object.values(CampaignStatus).includes(status)) {
       updateData.status = status;
+    }
+    if (selectedProducts !== undefined) {
+      updateData.selectedProducts = JSON.stringify(selectedProducts);
+    }
+    if (includeBrandAd !== undefined) {
+      updateData.includeBrandAd = includeBrandAd;
     }
 
     const campaign = await prisma.campaign.update({

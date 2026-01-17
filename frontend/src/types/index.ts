@@ -175,6 +175,16 @@ export interface Campaign {
     id: string;
     companyName: string;
     primaryColor?: string;
+    colors?: {
+      primary: string;
+      secondary: string;
+      accent: string;
+    };
+    products?: Array<{
+      name: string;
+      description: string;
+      keyBenefits?: string[];
+    }>;
   };
   ads?: GeneratedAd[];
   adCount?: number;
@@ -200,6 +210,8 @@ export interface CampaignUpdateInput {
   style?: AdStyle;
   customInstructions?: string;
   status?: CampaignStatus;
+  selectedProducts?: number[];
+  includeBrandAd?: boolean;
 }
 
 // Cost tracking types
