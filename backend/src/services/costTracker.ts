@@ -9,15 +9,20 @@ export const MODEL_PRICING = {
     output: 0.003,  // $3.00 per 1M tokens
     displayName: 'Gemini 3 Flash',
   },
-  // Flux Pro 1.1 (per image generation)
+  // Flux Pro 1.1 (per image generation) - legacy
   'flux-pro-1.1': {
     perImage: 0.04,  // $0.04 per image
     displayName: 'Flux Pro 1.1',
   },
-  // Flux Pro Fill (per image)
+  // Flux Pro Fill (per image) - legacy
   'flux-pro-fill': {
     perImage: 0.05,  // $0.05 per image
     displayName: 'Flux Pro Fill',
+  },
+  // DALL-E 3 (per image generation)
+  'dalle-3': {
+    perImage: 0.04,  // $0.04 for 1024x1024, $0.08 for larger (tracked dynamically)
+    displayName: 'DALL-E 3',
   },
   // Remove.bg (per image)
   'remove-bg': {
@@ -128,10 +133,10 @@ class CostTracker {
   }
 
   /**
-   * Track image generation costs (Flux, Remove.bg) and persist to database
+   * Track image generation costs (DALL-E, Flux, Remove.bg) and persist to database
    */
   async trackImageGeneration(
-    model: 'flux-pro-1.1' | 'flux-pro-fill' | 'remove-bg' | 'cloudinary',
+    model: 'flux-pro-1.1' | 'flux-pro-fill' | 'dalle-3' | 'remove-bg' | 'cloudinary',
     operation: string,
     imageCount: number = 1,
     adId?: string,

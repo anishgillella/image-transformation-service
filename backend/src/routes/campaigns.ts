@@ -484,8 +484,11 @@ async function generateCampaignAds(campaign: any, targetPlatforms: string[]) {
             width: dimensions.width,
             height: dimensions.height,
           });
-          // Cost for image generation
-          imageGenerationCost = MODEL_PRICING['flux-pro-1.1'].perImage;
+          // Cost for image generation (DALL-E 3)
+          // DALL-E 3: $0.04 for 1024x1024, $0.08 for larger sizes
+          const aspectRatio = dimensions.width / dimensions.height;
+          const isLargeSize = aspectRatio > 1.3 || aspectRatio < 0.77; // 1792x1024 or 1024x1792
+          imageGenerationCost = isLargeSize ? 0.08 : 0.04;
 
           // Step 3: Upload to Cloudinary
           console.log('Uploading to Cloudinary...');
@@ -559,9 +562,11 @@ async function generateCampaignAds(campaign: any, targetPlatforms: string[]) {
           });
 
           console.log(`Ad created: ${ad.id} with cost: $${totalCost.toFixed(4)}`);
-        } catch (adError) {
-          console.error(`Failed to generate ad for ${adLabel} on ${platform}:`, adError);
-          // Continue with other ads
+        } catch (adError: any) {
+          const errorMessage = adError?.message || 'Unknown error';
+          console.error(`Failed to generate ad for ${adLabel} on ${platform}:`, errorMessage);
+          console.error('Full error:', adError);
+          // Continue with other ads but log the specific error
         }
       }
     }

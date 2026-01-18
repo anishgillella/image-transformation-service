@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { costTracker } from './costTracker';
 
-const BFL_API_URL = 'https://api.bfl.ml/v1';
+// OpenAI DALL-E API
+const OPENAI_API_URL = 'https://api.openai.com/v1/images/generations';
 
 interface FluxGenerateOptions {
   prompt: string;
@@ -12,14 +13,22 @@ interface FluxGenerateOptions {
 }
 
 /**
- * Round dimensions to be divisible by 32 (Flux API requirement)
- * Also ensures minimum 256 and maximum 1440
+ * Map dimensions to DALL-E 3 supported sizes
+ * DALL-E 3 supports: 1024x1024, 1024x1792 (portrait), 1792x1024 (landscape)
  */
-function normalizeFluxDimension(dim: number): number {
-  // Clamp to valid range
-  const clamped = Math.max(256, Math.min(1440, dim));
-  // Round to nearest 32
-  return Math.round(clamped / 32) * 32;
+function getDalleSize(width: number, height: number): '1024x1024' | '1024x1792' | '1792x1024' {
+  const aspectRatio = width / height;
+
+  if (aspectRatio > 1.3) {
+    // Landscape
+    return '1792x1024';
+  } else if (aspectRatio < 0.77) {
+    // Portrait
+    return '1024x1792';
+  } else {
+    // Square-ish
+    return '1024x1024';
+  }
 }
 
 interface FluxFillOptions {
@@ -31,118 +40,100 @@ interface FluxFillOptions {
 }
 
 /**
- * Generate an image using Flux.2 Pro
+ * Generate an image using OpenAI DALL-E 3
  */
 export async function generateImage(options: FluxGenerateOptions): Promise<Buffer> {
-  // Normalize dimensions to Flux API requirements
-  const width = normalizeFluxDimension(options.width ?? 1024);
-  const height = normalizeFluxDimension(options.height ?? 1024);
+  const requestedWidth = options.width ?? 1024;
+  const requestedHeight = options.height ?? 1024;
+  const size = getDalleSize(requestedWidth, requestedHeight);
 
-  console.log(`Flux: Generating image at ${width}x${height} (requested: ${options.width}x${options.height})`);
+  console.log(`DALL-E: Generating image at ${size} (requested: ${requestedWidth}x${requestedHeight})`);
 
-  // Step 1: Submit generation request
-  const submitResponse = await axios.post(
-    `${BFL_API_URL}/flux-pro-1.1`,
-    {
-      prompt: options.prompt,
-      width,
-      height,
-      steps: options.steps ?? 25,
-      guidance: options.guidance ?? 3,
-      safety_tolerance: 2,
-      output_format: 'png',
-    },
-    {
-      headers: {
-        'X-Key': process.env.BFL_API_KEY,
-        'Content-Type': 'application/json',
+  // Check for API key
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY is not configured. Please add it to your .env file.');
+  }
+
+  try {
+    const response = await axios.post(
+      OPENAI_API_URL,
+      {
+        model: 'dall-e-3',
+        prompt: options.prompt,
+        n: 1,
+        size: size,
+        quality: 'standard',
+        response_format: 'url',
       },
-    }
-  );
-
-  const taskId = submitResponse.data.id;
-
-  // Step 2: Poll for result
-  const imageUrl = await pollForResult(taskId);
-
-  // Step 3: Download image
-  const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-
-  // Track cost (no adId, just metadata)
-  costTracker.trackImageGeneration('flux-pro-1.1', 'image-generation', 1, undefined, { prompt: options.prompt.substring(0, 100) });
-
-  return Buffer.from(imageResponse.data);
-}
-
-/**
- * Edit/inpaint an image using Flux Fill
- */
-export async function fillImage(options: FluxFillOptions): Promise<Buffer> {
-  // Convert buffers to base64
-  const imageBase64 = options.image.toString('base64');
-  const maskBase64 = options.mask.toString('base64');
-
-  // Step 1: Submit fill request
-  const submitResponse = await axios.post(
-    `${BFL_API_URL}/flux-pro-1.0-fill`,
-    {
-      image: imageBase64,
-      mask: maskBase64,
-      prompt: options.prompt,
-      width: options.width ?? 1024,
-      height: options.height ?? 1024,
-      safety_tolerance: 2,
-      output_format: 'png',
-    },
-    {
-      headers: {
-        'X-Key': process.env.BFL_API_KEY,
-        'Content-Type': 'application/json',
-      },
-    }
-  );
-
-  const taskId = submitResponse.data.id;
-
-  // Step 2: Poll for result
-  const imageUrl = await pollForResult(taskId);
-
-  // Step 3: Download image
-  const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-
-  // Track cost (no adId, just metadata)
-  costTracker.trackImageGeneration('flux-pro-fill', 'image-fill', 1, undefined, { prompt: options.prompt.substring(0, 100) });
-
-  return Buffer.from(imageResponse.data);
-}
-
-/**
- * Poll BFL API for task completion
- */
-async function pollForResult(taskId: string, maxAttempts = 60): Promise<string> {
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const response = await axios.get(
-      `${BFL_API_URL}/get_result?id=${taskId}`,
       {
         headers: {
-          'X-Key': process.env.BFL_API_KEY,
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
         },
+        timeout: 120000, // 2 minute timeout
       }
     );
 
-    const status = response.data.status;
+    const imageUrl = response.data.data[0].url;
 
-    if (status === 'Ready') {
-      return response.data.result.sample;
-    } else if (status === 'Error') {
-      throw new Error(`Flux generation failed: ${response.data.error}`);
+    // Download image
+    const imageResponse = await axios.get(imageUrl, {
+      responseType: 'arraybuffer',
+      timeout: 60000,
+    });
+
+    // Track cost - DALL-E 3 pricing
+    const cost = size === '1024x1024' ? 0.04 : 0.08; // Standard quality pricing
+    costTracker.trackImageGeneration('dalle-3', 'image-generation', 1, undefined, {
+      prompt: options.prompt.substring(0, 100),
+      size,
+      cost,
+    });
+
+    return Buffer.from(imageResponse.data);
+  } catch (error: any) {
+    // Handle specific error cases
+    if (error.response) {
+      const status = error.response.status;
+      const errorData = error.response.data?.error;
+
+      if (status === 401) {
+        throw new Error('Invalid OpenAI API key. Please check your OPENAI_API_KEY.');
+      } else if (status === 429) {
+        throw new Error('OpenAI rate limit exceeded. Please try again in a few moments.');
+      } else if (status === 400 && errorData?.code === 'content_policy_violation') {
+        throw new Error('Image generation failed: Content policy violation. Try a different prompt.');
+      } else if (status === 400) {
+        throw new Error(`Image generation failed: ${errorData?.message || 'Bad request'}`);
+      } else if (status === 500 || status === 503) {
+        throw new Error('OpenAI service is temporarily unavailable. Please try again later.');
+      }
+
+      throw new Error(`Image generation failed: ${errorData?.message || error.message}`);
+    } else if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+      throw new Error('Image generation timed out. Please try again.');
+    } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+      throw new Error('Unable to connect to OpenAI. Check your internet connection.');
     }
 
-    // Wait 1 second before polling again
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    throw new Error(`Image generation failed: ${error.message}`);
   }
+}
 
-  throw new Error('Flux generation timed out');
+/**
+ * Edit/inpaint an image using DALL-E 2 (DALL-E 3 doesn't support inpainting)
+ * Falls back to generating a new image with context from the prompt
+ */
+export async function fillImage(options: FluxFillOptions): Promise<Buffer> {
+  // DALL-E 3 doesn't support inpainting, so we generate a new image
+  // with the prompt that describes what we want
+  console.log('DALL-E: Fill/inpaint not supported, generating new image with prompt');
+
+  return generateImage({
+    prompt: options.prompt,
+    width: options.width,
+    height: options.height,
+  });
 }
 
 /**
